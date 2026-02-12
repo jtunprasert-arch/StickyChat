@@ -3,47 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StickySpace Beta 11.6 - Identity Sync</title>
+    <title>StickySpace Beta 12.4 - Member & Alert Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kanit:wght@300;400&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; touch-action: none; }
-        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; z-index: 10; }
-        #canvas { width: 5000px; height: 5000px; position: absolute; transform: translate(0px, 0px); background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 20px 20px; }
-        
-        #private-barrier { position: fixed; z-index: 40; pointer-events: none; border-color: rgba(59, 130, 246, 0.5); background: rgba(30, 41, 59, 0.05); }
-        @media (max-width: 767px) { #private-barrier { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; } }
-        @media (min-width: 768px) { #private-barrier { height: 100%; width: 400px; right: 0; border-left-width: 4px; } }
-
-        .post-it { width: 210px; min-height: 240px; position: absolute; padding: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px; cursor: grab; touch-action: none; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.05); background-color: #fef9c3; z-index: 20; }
+        body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; touch-action: none; margin: 0; }
+        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+        #canvas { width: 5000px; height: 5000px; position: absolute; background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 20px 20px; will-change: transform; }
+        #notes-layer { position: absolute; top: 0; left: 0; z-index: 20; pointer-events: none; width: 100%; height: 100%; }
+        .post-it { width: 210px; min-height: 240px; position: absolute; padding: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px; cursor: grab; touch-action: none; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.05); background-color: #fef9c3; pointer-events: auto; }
         .is-chat { border: 3px solid #3b82f6 !important; background-color: #eff6ff !important; }
         .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; margin-bottom: 8px; max-height: 120px; pointer-events: auto; scrollbar-width: none; }
-        
         .chat-input-wrapper { display: flex; gap: 4px; margin-top: auto; width: 100%; }
         .direct-input { font-size: 10px; padding: 8px 12px; border-radius: 99px; border: 1px solid #ddd; outline: none; flex: 1; min-width: 0; background: white; pointer-events: auto; }
-        
         .btn-del { position: absolute; top: 6px; right: 6px; z-index: 100; padding: 5px; color: #ef4444; font-weight: bold; cursor: pointer; pointer-events: auto; font-size: 18px; line-height: 1; }
         .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; box-shadow: 0 0 5px #22c55e; }
-        .dragging { opacity: 0.9; z-index: 10000 !important; cursor: grabbing; scale: 1.05; }
-        
-        /* Member Card Enhancement */
-        .member-card { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 50px; }
+        .member-card { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 55px; pointer-events: auto; }
+        .is-offline { opacity: 0.4; filter: grayscale(1); }
         .member-name { font-size: 9px; font-weight: 700; color: #475569; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #private-barrier { position: fixed; z-index: 5; pointer-events: none; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.03); }
+        @media (max-width: 767px) { #private-barrier { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; } }
+        @media (min-width: 768px) { #private-barrier { height: 100%; width: 400px; right: 0; border-left-width: 4px; } }
     </style>
 </head>
 <body>
 
-    <header class="fixed top-0 left-0 right-0 bg-white border-b px-4 py-1 flex items-center justify-between z-[100] shadow-sm">
-        <div class="flex items-center gap-6 overflow-x-auto no-scrollbar py-1" id="members-bar"></div>
-        <div id="user-ctrl" class="hidden flex items-center gap-2 border-l pl-2">
+    <header class="fixed top-0 left-0 right-0 bg-white/95 border-b px-4 py-2 flex items-center justify-between z-[100] shadow-sm pointer-events-none">
+        <div class="flex items-center gap-4 overflow-x-auto no-scrollbar py-1 pointer-events-auto" id="members-bar"></div>
+        <div id="user-ctrl" class="hidden flex items-center gap-2 border-l pl-2 pointer-events-auto">
             <button id="admin-clear" onclick="clearBoard()" class="hidden bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase">Clear All</button>
-            <img id="my-avatar" onclick="changeAvatar()" class="w-10 h-10 rounded-full border shadow-sm cursor-pointer hover:scale-110 transition">
+            <img id="my-avatar" onclick="changeAvatar()" class="w-10 h-10 rounded-full border shadow-sm cursor-pointer">
         </div>
     </header>
 
     <div id="viewport">
         <div id="canvas"><div id="notes-layer"></div></div>
-        <div id="private-barrier"></div>
+        <div id="private-barrier"><div class="absolute top-2 left-4 text-[10px] text-blue-500 font-black uppercase opacity-60 italic">Private Space 🔒</div></div>
     </div>
 
     <button onclick="resetView()" class="fixed bottom-24 right-6 w-12 h-12 bg-white border-2 border-blue-500 rounded-full z-[80] shadow-lg text-blue-500 flex items-center justify-center font-bold">🏠</button>
@@ -57,7 +52,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-[320px] text-center border-t-8 border-blue-600">
-            <h2 class="text-2xl font-bold mb-4 uppercase">StickySpace 11.6</h2>
+            <h2 class="text-2xl font-bold mb-4 uppercase text-slate-800">StickySpace 12.4</h2>
             <input id="auth-user" type="text" placeholder="USERNAME" class="w-full border p-3 rounded-xl mb-3 outline-none font-bold text-center uppercase">
             <input id="auth-pass" type="password" maxlength="4" placeholder="PIN" class="w-full border p-3 rounded-xl mb-4 text-center tracking-widest outline-none">
             <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Login</button>
@@ -75,6 +70,14 @@
         let panX = 0, panY = 0, highestZ = 10000, allUsers = {}, lastOnlineStatus = {};
 
         const vp = document.getElementById('viewport'), cv = document.getElementById('canvas');
+        vp.addEventListener('touchstart', (e) => {
+            if (e.target.id === 'canvas' || e.target.id === 'viewport') {
+                const sX = e.touches[0].clientX - panX, sY = e.touches[0].clientY - panY;
+                const onM = (m) => { panX = m.touches[0].clientX - sX; panY = m.touches[0].clientY - sY; cv.style.transform = `translate(${panX}px, ${panY}px)`; };
+                const onE = () => { vp.removeEventListener('touchmove', onM); vp.removeEventListener('touchend', onE); };
+                vp.addEventListener('touchmove', onM); vp.addEventListener('touchend', onE);
+            }
+        }, { passive: false });
         window.resetView = () => { panX = 0; panY = 0; cv.style.transform = `translate(0px, 0px)`; };
 
         window.handleAuth = () => {
@@ -87,80 +90,103 @@
             document.getElementById('user-ctrl').classList.remove('hidden');
             document.getElementById('my-avatar').src = user.avatar;
             if(user.id === 'jantorn') document.getElementById('admin-clear').classList.remove('hidden');
-            
-            const userStatusRef = ref(db, `status/${user.id}`);
-            set(userStatusRef, { id: user.id, name: user.name, avatar: user.avatar, online: true, session: user.session });
-            onDisconnect(userStatusRef).update({ online: false });
+            set(ref(db, `status/${user.id}`), { id: user.id, name: user.name, avatar: user.avatar, online: true, session: user.session });
+            onDisconnect(ref(db, `status/${user.id}`)).update({ online: false });
             initApp();
         };
 
         function initApp() {
             onValue(ref(db, `status/${user.id}`), (snap) => { if(!snap.val() || (snap.val().session && snap.val().session !== user.session)) location.reload(); });
-            
-            // Fixed Member Render: อัปเดตชื่อและไอคอนทันที
             onValue(ref(db, 'status'), (s) => { 
                 const data = s.val() || {};
-                Object.keys(data).forEach(uid => { 
-                    if (lastOnlineStatus[uid] === true && data[uid].online === false) expelUserFromChats(uid, data[uid].name); 
-                    lastOnlineStatus[uid] = data[uid].online; 
-                });
-                allUsers = data; 
-                renderMembers(data); 
+                Object.keys(data).forEach(uid => { if (lastOnlineStatus[uid] === true && data[uid].online === false) expelUserFromChats(uid, data[uid].name); lastOnlineStatus[uid] = data[uid].online; });
+                allUsers = data; renderMembers(data); 
             });
 
             onValue(ref(db, 'public_notes'), (s) => syncUI(s.val(), 'public'));
             onValue(ref(db, `private_notes/${user.id}`), (s) => syncUI(s.val(), 'private'));
+
+            // RE-CONNECTED: High-Priority Chat Alert Sync
             onValue(ref(db, `chat_master`), (snap) => {
                 const chats = snap.val() || {};
-                get(ref(db, `private_notes/${user.id}`)).then(pSnap => {
-                    const myNotes = pSnap.val() || {};
-                    Object.keys(myNotes).forEach(nid => { if(myNotes[nid].isChat && !chats[nid]) remove(ref(db, `private_notes/${user.id}/${nid}`)); });
-                });
                 Object.keys(chats).forEach(cid => {
                     if(chats[cid].active_participants?.includes(user.id)) {
-                        get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => { const pD = pS.val() || {}; update(ref(db, `private_notes/${user.id}/${cid}`), { ...chats[cid], x: pD.x ?? chats[cid].x, y: pD.y ?? chats[cid].y }); });
-                    }
+                        get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => {
+                            const pD = pS.val() || {};
+                            update(ref(db, `private_notes/${user.id}/${cid}`), { ...chats[cid], x: pD.x ?? chats[cid].x, y: pD.y ?? chats[cid].y });
+                        });
+                    } else { remove(ref(db, `private_notes/${user.id}/${cid}`)); }
                 });
             });
         }
 
-        function renderMembers(data) {
-            const bar = document.getElementById('members-bar'); 
-            bar.innerHTML = '';
-            Object.keys(data).forEach(uid => {
-                const u = data[uid];
-                if (!u.online && uid !== user.id) return; // ซ่อนคนที่ไม่ได้รับอนุญาต หรือ Offline นานแล้ว
-
-                const div = document.createElement('div');
-                div.className = "member-card";
-                const delBtn = (user.id === 'jantorn' && uid !== user.id) ? `<div class="member-del-btn" onclick="event.stopPropagation(); window.adminHardPurge('${uid}', '${u.name}')">✕</div>` : '';
-                
-                div.innerHTML = `
-                    <div class="relative w-8 h-8 group">
-                        ${delBtn}
-                        <img src="${u.avatar}" class="w-full h-full rounded-full border-2 border-white shadow-sm group-hover:border-blue-400 transition">
-                        <div class="${u.online ? 'online-dot' : 'hidden'}"></div>
-                    </div>
-                    <span class="member-name">${u.name}</span>
-                `;
-                div.onmousedown = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; 
-                div.ontouchstart = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; 
-                bar.appendChild(div);
+        window.deleteNoteUnified = (z, id, isC) => {
+            const path = z === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
+            get(ref(db, path)).then(snap => {
+                const data = snap.val();
+                if (data?.isPinned && data.pinnedBy !== user.id && user.id !== 'jantorn') { alert('ล็อก!'); return; }
+                if (!confirm('ลบ?')) return;
+                if (isC) {
+                    get(ref(db, `chat_master/${id}`)).then(s => {
+                        const d = s.val(); if(!d) { remove(ref(db, `private_notes/${user.id}/${id}`)); return; }
+                        const rem = d.active_participants.filter(p => p !== user.id);
+                        const msgs = d.messages || [];
+                        msgs.push({user: 'System', text: `${user.name} ปิดหน้าต่างแชทแล้ว`});
+                        remove(ref(db, `private_notes/${user.id}/${id}`));
+                        if (rem.length === 0) remove(ref(db, `chat_master/${id}`));
+                        else {
+                            update(ref(db, `chat_master/${id}`), { active_participants: rem, messages: msgs });
+                            rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), { active_participants: rem, messages: msgs }));
+                        }
+                    });
+                } else remove(ref(db, path));
             });
-        }
-
-        window.changeAvatar = () => { 
-            const ns = Math.random().toString(36).substring(7); 
-            user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`; 
-            document.getElementById('my-avatar').src = user.avatar; 
-            update(ref(db, `status/${user.id}`), { avatar: user.avatar }); 
         };
 
-        // --- Logic ส่วนอื่นๆ (Sync UI, Drag, Create, Chat) คงเดิมจาก 11.5 ---
+        function startIconDrag(e, tUid) {
+            const ev = e.touches ? e.touches[0] : e;
+            const cl = document.createElement('div'); cl.className = "fixed z-[20000] bg-white border px-3 py-1 rounded-full shadow-2xl text-[11px] font-bold flex items-center gap-2 pointer-events-none";
+            cl.innerHTML = `<img src="${allUsers[tUid].avatar}" class="w-5 h-5 rounded-full"><span>${allUsers[tUid].name}</span>`; document.body.appendChild(cl);
+            const move = (m) => { const mev = m.touches ? m.touches[0] : m; cl.style.left = (mev.clientX-30)+'px'; cl.style.top = (mev.clientY-15)+'px'; };
+            const stop = (v) => {
+                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
+                const vev = v.changedTouches ? v.changedTouches[0] : v;
+                const hitNote = document.elementFromPoint(vev.clientX, vev.clientY)?.closest('.is-chat');
+                
+                if(hitNote) {
+                    const cid = hitNote.getAttribute('data-id');
+                    get(ref(db, `chat_master/${cid}`)).then(snap => {
+                        const d = snap.val();
+                        if(d && !d.active_participants.includes(tUid)) {
+                            const nAct = [...d.active_participants, tUid];
+                            const msgs = d.messages || [];
+                            msgs.push({user: 'System', text: `${allUsers[tUid].name} เข้าร่วมกลุ่ม`});
+                            update(ref(db, `chat_master/${cid}`), { active_participants: nAct, messages: msgs });
+                            nAct.forEach(pid => update(ref(db, `private_notes/${pid}/${cid}`), { active_participants: nAct, messages: msgs }));
+                        }
+                    });
+                } else if(vev.clientX > window.innerWidth - 400) {
+                    const cid = "chat_" + Date.now();
+                    const cd = { 
+                        ownerId: user.id, isChat: true, active_participants: [user.id, tUid], 
+                        messages: [{user: 'System', text: `แชทเริ่มแล้ว: ${user.name}, ${allUsers[tUid].name}`}], 
+                        x: vev.clientX-panX-100, y: vev.clientY-panY-120, zIndex: ++highestZ 
+                    };
+                    set(ref(db, `chat_master/${cid}`), cd);
+                    set(ref(db, `private_notes/${user.id}/${cid}`), cd);
+                    set(ref(db, `private_notes/${tUid}/${cid}`), cd);
+                }
+                cl.remove();
+            };
+            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
+        }
+
+        // --- UI Rendering Helpers (Standard from 12.3) ---
         function syncUI(data, zone) {
             const layer = document.getElementById('notes-layer');
-            if(!data) { document.querySelectorAll(`[data-zone="${zone}"]`).forEach(el => el.remove()); return; }
-            document.querySelectorAll(`[data-zone="${zone}"]`).forEach(el => { if(!data[el.getAttribute('data-id')]) el.remove(); });
+            const currentEls = document.querySelectorAll(`[data-zone="${zone}"]`);
+            if(!data) { currentEls.forEach(el => el.remove()); return; }
+            currentEls.forEach(el => { if(!data[el.getAttribute('data-id')]) el.remove(); });
             Object.keys(data).forEach(id => {
                 let el = document.querySelector(`[data-id="${id}"]`);
                 if(!el) { el = document.createElement('div'); el.setAttribute('data-id', id); el.setAttribute('data-zone', zone); layer.appendChild(el); }
@@ -171,60 +197,43 @@
             el.className = `post-it ${n.isChat ? 'is-chat' : ''}`;
             el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.style.zIndex = n.zIndex || 10;
             const canManage = (zone === 'private' || user.id === 'jantorn' || !n.isPinned || n.pinnedBy === user.id);
-            el.innerHTML = `
-                <div class="btn-del" onclick="event.stopPropagation(); window.deleteNoteUnified('${zone}','${id}', ${!!n.isChat})">✕</div>
-                <div class="flex flex-col border-b border-black/5 pb-1 mb-1 pointer-events-none">
-                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                        <span class="text-xs font-normal cursor-pointer pointer-events-auto" onclick="event.stopPropagation(); window.togglePin('${id}','${zone}',${!!n.isPinned},'${n.pinnedBy}')">${n.isPinned ? '📌' : '📍'}</span>
-                        <span class="truncate uppercase font-black text-[9px]">${n.isChat ? 'GROUP' : 'NOTE'}</span>
-                    </div>
-                </div>
-                <div id="chat-box-${id}" class="chat-area no-scrollbar text-slate-800">${(n.messages || []).map(m => `<div><strong>${m.user}:</strong> ${m.text}</div>`).join('')}</div>
-                ${n.isChat ? `<div class="chat-input-wrapper">
-                    <input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)">
-                    <button onclick="window.replyInNote('${id}', document.getElementById('reply-${id}').value)" class="bg-blue-600 text-white text-[9px] px-2 py-1 rounded-full font-bold">SEND</button>
-                </div>` : ''}
-            `;
+            el.innerHTML = `<div class="btn-del" onclick="event.stopPropagation(); window.deleteNoteUnified('${zone}','${id}', ${!!n.isChat})">✕</div><div class="flex flex-col border-b border-black/5 pb-1 mb-1 pointer-events-none"><div class="flex items-center gap-2 text-[10px] font-bold text-slate-400"><span class="text-xs font-normal cursor-pointer pointer-events-auto" onclick="event.stopPropagation(); window.togglePin('${id}','${zone}',${!!n.isPinned},'${n.pinnedBy}')">${n.isPinned ? '📌' : '📍'}</span><span class="truncate uppercase font-black text-[9px]">${n.isChat ? 'GROUP' : 'NOTE'}</span></div></div><div id="chat-box-${id}" class="chat-area no-scrollbar text-slate-800">${(n.messages || []).map(m => `<div><strong>${m.user}:</strong> ${m.text}</div>`).join('')}</div>${n.isChat ? `<div class="chat-input-wrapper"><input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)"><button onclick="window.replyInNote('${id}', document.getElementById('reply-${id}').value)" class="bg-blue-600 text-white text-[9px] px-2 py-1 rounded-full font-bold">SEND</button></div>` : ''}`;
             setTimeout(() => { const b = document.getElementById(`chat-box-${id}`); if(b) b.scrollTop = b.scrollHeight; }, 100);
             el.onmousedown = (e) => { if(canManage) startDrag(e, el, id, zone, n); }; el.ontouchstart = (e) => { if(canManage) startDrag(e, el, id, zone, n); };
-        }
-        window.replyInNote = (id, text) => { if(!text.trim()) return; get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(d) { const m = d.messages || []; m.push({user: user.name, text: text.trim()}); update(ref(db, `chat_master/${id}`), {messages: m}); d.active_participants.forEach(p => update(ref(db, `private_notes/${p}/${id}`), {messages: m})); } }); document.getElementById(`reply-${id}`).value = ''; };
-        window.createNewSticky = () => { const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return; const id = "note_" + Date.now(); const b = document.getElementById('private-barrier').getBoundingClientRect(); const now = new Date(); const time = now.toLocaleDateString('th-TH', {day:'2-digit', month:'2-digit'}) + ' ' + now.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'}); set(ref(db, `private_notes/${user.id}/${id}`), { ownerId: user.id, messages: [{user: user.name, text: txt}], x: (window.innerWidth < 768 ? 50 : b.left + 50) - panX, y: (window.innerWidth < 768 ? b.top + 50 : 100) - panY, zIndex: ++highestZ, isChat: false, isPinned: false, time }); document.getElementById('new-note-text').value = ''; };
-        window.deleteNoteUnified = (z, id, isC) => { get(ref(db, z === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`)).then(snap => { const data = snap.val(); if (data?.isPinned && data.pinnedBy !== user.id && user.id !== 'jantorn') { alert('ล็อก!'); return; } if (!confirm('ลบ?')) return; if (isC) { get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(!d) { remove(ref(db, `private_notes/${user.id}/${id}`)); return; } const rem = d.active_participants.filter(p => p !== user.id); const msgs = d.messages || []; msgs.push({user: 'System', text: `${user.name} ปิดหน้าต่างแล้ว`}); remove(ref(db, `private_notes/${user.id}/${id}`)); if (rem.length === 0) remove(ref(db, `chat_master/${id}`)); else { const ups = {}; ups[`chat_master/${id}/active_participants`] = rem; ups[`chat_master/${id}/messages`] = msgs; rem.forEach(p => ups[`private_notes/${p}/${id}`] = {...d, active_participants: rem, messages: msgs}); update(ref(db), ups); } }); } else remove(ref(db, z === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`)); }); };
-        function expelUserFromChats(uid, name) { get(ref(db, 'chat_master')).then(snap => { const chats = snap.val() || {}; Object.keys(chats).forEach(cid => { if (chats[cid].active_participants?.includes(uid)) { const remaining = chats[cid].active_participants.filter(p => p !== uid); const msgs = chats[cid].messages || []; msgs.push({user: 'System', text: `${name} หลุดจากกลุ่ม (Offline)`}); if (remaining.length === 0) remove(ref(db, `chat_master/${cid}`)); else { update(ref(db, `chat_master/${cid}`), { active_participants: remaining, messages: msgs }); remaining.forEach(p => update(ref(db, `private_notes/${p}/${cid}`), { active_participants: remaining, messages: msgs })); } } }); }); }
-        function startIconDrag(e, tUid) {
-            if(e.target.classList.contains('member-del-btn')) return;
-            const ev = e.touches ? e.touches[0] : e;
-            const cl = document.createElement('div'); cl.className = "fixed z-[20000] bg-white border px-3 py-1 rounded-full shadow-2xl text-[11px] font-bold flex items-center gap-2 pointer-events-none";
-            cl.innerHTML = `<img src="${allUsers[tUid].avatar}" class="w-5 h-5 rounded-full"><span>${allUsers[tUid].name}</span>`; document.body.appendChild(cl);
-            const move = (m) => { const mev = m.touches ? m.touches[0] : m; cl.style.left = (mev.clientX-30)+'px'; cl.style.top = (mev.clientY-15)+'px'; };
-            const stop = (v) => {
-                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
-                const vev = v.changedTouches ? v.changedTouches[0] : v;
-                const b = document.getElementById('private-barrier').getBoundingClientRect();
-                const hitNote = document.elementFromPoint(vev.clientX, vev.clientY)?.closest('.is-chat');
-                if(hitNote) {
-                    const cid = hitNote.getAttribute('data-id');
-                    get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => { const pD = pS.val() || {}; get(ref(db, `chat_master/${cid}`)).then(snap => { const d = snap.val(); if(d && !d.active_participants.includes(tUid)) { const nAct = [...d.active_participants, tUid]; const msgs = d.messages || []; msgs.push({user: 'System', text: `${allUsers[tUid].name} เข้าร่วมกลุ่ม`}); const up = {...d, active_participants: nAct, messages: msgs}; const ups = {}; ups[`chat_master/${cid}`] = up; nAct.forEach(pid => ups[`private_notes/${pid}/${cid}`] = up); update(ref(db), ups); } }); });
-                } else if((window.innerWidth < 768 && vev.clientY > b.top) || (window.innerWidth >= 768 && vev.clientX > b.left)) {
-                    const cid = "chat_" + Date.now(); const now = new Date(); const time = now.toLocaleDateString('th-TH', {day:'2-digit', month:'2-digit'}) + ' ' + now.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
-                    const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `แชทเริ่มแล้ว: ${user.name}, ${allUsers[tUid].name}`}], x: vev.clientX-panX-100, y: vev.clientY-panY-120, zIndex: ++highestZ, time };
-                    const ups = {}; ups[`chat_master/${cid}`] = cd; ups[`private_notes/${user.id}/${cid}`] = cd; ups[`private_notes/${tUid}/${cid}`] = cd; update(ref(db), ups);
-                } cl.remove();
-            };
-            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
         }
         function startDrag(e, el, id, zone, data) {
             if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.classList.contains('btn-del') || e.target.closest('span')) return;
             const ev = e.touches ? e.touches[0] : e; const offX = ev.clientX - el.offsetLeft - panX, offY = ev.clientY - el.offsetTop - panY;
             el.classList.add('dragging'); highestZ++; el.style.zIndex = highestZ;
             const move = (m) => { const mev = m.touches ? m.touches[0] : m; el.style.left = (mev.clientX - offX - panX) + 'px'; el.style.top = (mev.clientY - offY - panY) + 'px'; };
-            const stop = (v) => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop); el.classList.remove('dragging'); const vev = v.changedTouches ? v.changedTouches[0] : v; const finX = vev.clientX - offX - panX, finY = vev.clientY - offY - panY; const bRect = document.getElementById('private-barrier').getBoundingClientRect(); let inP = (window.innerWidth < 768) ? (vev.clientY > bRect.top) : (vev.clientX > bRect.left); if(zone === 'public' && inP) { remove(ref(db, `public_notes/${id}`)); set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); } else if(zone === 'private' && !inP) { if(data.isChat) { el.style.left = data.x + 'px'; el.style.top = data.y + 'px'; return; } remove(ref(db, `private_notes/${user.id}/${id}`)); set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); } else { update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), {x: finX, y: finY, zIndex: highestZ}); } };
+            const stop = (v) => {
+                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
+                el.classList.remove('dragging'); const vev = v.changedTouches ? v.changedTouches[0] : v; const finX = vev.clientX - offX - panX, finY = vev.clientY - offY - panY;
+                const bRect = document.getElementById('private-barrier').getBoundingClientRect();
+                let inP = (window.innerWidth < 768) ? (vev.clientY > bRect.top) : (vev.clientX > bRect.left);
+                if(zone === 'public' && inP) { remove(ref(db, `public_notes/${id}`)); set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); }
+                else if(zone === 'private' && !inP) { if(data.isChat) { el.style.left = data.x + 'px'; el.style.top = data.y + 'px'; return; } remove(ref(db, `private_notes/${user.id}/${id}`)); set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); }
+                else { update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), {x: finX, y: finY, zIndex: highestZ}); }
+            };
             document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
         }
-        window.togglePin = (id, zone, current, pBy) => { if(current && pBy !== user.id && user.id !== 'jantorn') return; const path = zone === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`; update(ref(db, path), { isPinned: !current, pinnedBy: !current ? user.id : null }); };
+        window.replyInNote = (id, text) => { if(!text.trim()) return; get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(d) { const m = d.messages || []; m.push({user: user.name, text: text.trim()}); update(ref(db, `chat_master/${id}`), {messages: m}); d.active_participants.forEach(p => update(ref(db, `private_notes/${p}/${id}`), {messages: m})); } }); document.getElementById(`reply-${id}`).value = ''; };
+        window.createNewSticky = () => { const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return; const id = "note_" + Date.now(); const barrier = document.getElementById('private-barrier').getBoundingClientRect(); let startX = (window.innerWidth < 768) ? (window.innerWidth / 2 - 100) : (barrier.left + 50); let startY = (window.innerWidth < 768) ? (barrier.top + 50) : (window.innerHeight / 2 - 100); set(ref(db, `private_notes/${user.id}/${id}`), { ownerId: user.id, messages: [{user: user.name, text: txt}], x: startX - panX, y: startY - panY, zIndex: ++highestZ, isChat: false, isPinned: false, time: new Date().toLocaleString('th-TH') }); document.getElementById('new-note-text').value = ''; };
+        window.renderMembers = (data) => {
+            const bar = document.getElementById('members-bar'); bar.innerHTML = '';
+            Object.keys(data).forEach(uid => {
+                const u = data[uid]; if (user.id !== 'jantorn' && !u.online && uid !== user.id) return;
+                const div = document.createElement('div'); div.className = `member-card ${!u.online ? 'is-offline' : ''}`;
+                const delBtn = (user.id === 'jantorn' && uid !== user.id) ? `<div class="member-del-btn" onclick="event.stopPropagation(); window.adminHardPurge('${uid}', '${u.name}')">✕</div>` : '';
+                div.innerHTML = `<div class="relative w-8 h-8">${delBtn}<img src="${u.avatar}" class="w-full h-full rounded-full border-2 border-white"><div class="${u.online ? 'online-dot' : 'hidden'}"></div></div><span class="member-name">${u.name}</span>`;
+                div.onmousedown = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; div.ontouchstart = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; bar.appendChild(div);
+            });
+        };
         window.adminHardPurge = (uid, name) => { if(confirm(`ลบสมาชิก "${name}"?`)) { remove(ref(db, `status/${uid}`)); remove(ref(db, `private_notes/${uid}`)); } };
-        window.clearBoard = () => { if(confirm('Clear Public Board?')) set(ref(db, 'public_notes'), null); };
+        window.changeAvatar = () => { const ns = Math.random().toString(36).substring(7); user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`; document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), { avatar: user.avatar }); };
+        window.clearBoard = () => { if(confirm('Clear Board?')) set(ref(db, 'public_notes'), null); };
+        window.togglePin = (id, zone, current, pBy) => { if(current && pBy !== user.id && user.id !== 'jantorn') return; update(ref(db, zone === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`), { isPinned: !current, pinnedBy: !current ? user.id : null }); };
+        function expelUserFromChats(uid, name) { get(ref(db, 'chat_master')).then(snap => { const chats = snap.val() || {}; Object.keys(chats).forEach(cid => { if (chats[cid].active_participants?.includes(uid)) { const rem = chats[cid].active_participants.filter(p => p !== uid); const msgs = chats[cid].messages || []; msgs.push({user: 'System', text: `${name} หลุดจากกลุ่ม (Offline)`}); if (rem.length === 0) remove(ref(db, `chat_master/${cid}`)); else { update(ref(db, `chat_master/${cid}`), { active_participants: rem, messages: msgs }); rem.forEach(p => update(ref(db, `private_notes/${p}/${cid}`), { active_participants: rem, messages: msgs })); } } }); }); }
     </script>
 </body>
 </html>
