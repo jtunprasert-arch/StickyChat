@@ -2,65 +2,61 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StickySpace Beta7.3 - Stability Restore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StickySpace Beta 8.9 - Atomic Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kanit:wght@300;400&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; }
-        .canvas-bg { background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 30px 30px; }
+        body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; touch-action: none; }
+        .canvas-bg { background-color: #f1f5f9; background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 20px 20px; width: 100vw; height: 100vh; position: relative; }
+        #zone-divider { position: absolute; pointer-events: none; z-index: 1; border-color: rgba(59, 130, 246, 0.4); }
+        @media (max-width: 767px) { #zone-divider { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; background: rgba(30, 41, 59, 0.05); } }
+        @media (min-width: 768px) { #zone-divider { height: 100%; width: 400px; right: 0; border-left-width: 4px; background: rgba(30, 41, 59, 0.05); } }
         .post-it { 
-            width: 210px; min-height: 240px; position: absolute; padding: 12px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 4px; 
+            width: 180px; min-height: 200px; position: absolute; padding: 10px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 8px; 
             cursor: grab; touch-action: none; display: flex; flex-direction: column;
-            border: 1px solid rgba(0,0,0,0.05); z-index: 10; user-select: text;
-            background-color: #fef9c3; /* สีเหลืองมาตรฐาน */
+            border: 1px solid rgba(0,0,0,0.05); z-index: 10; background-color: #fef9c3;
+            transition: opacity 0.2s, transform 0.2s;
         }
+        @media (min-width: 768px) { .post-it { width: 210px; min-height: 240px; } }
         .is-chat { border: 3px solid #3b82f6 !important; background-color: #eff6ff !important; }
-        .is-pinned { border-top: 6px solid #ef4444 !important; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; margin-bottom: 8px; max-height: 140px; }
-        .system-msg { color: #64748b; font-style: italic; font-size: 10px; margin: 4px 0; border-left: 2px solid #cbd5e1; padding-left: 4px; }
+        .is-pinned { border-top: 5px solid #ef4444 !important; }
+        .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; margin-bottom: 8px; max-height: 120px; }
         .direct-input { font-size: 10px; padding: 6px 12px; border-radius: 99px; border: 1px solid #ddd; outline: none; width: 100%; background: white; }
-        .member-icon, button, #my-avatar { cursor: pointer !important; }
-        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; }
+        .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 1.5px solid white; }
+        .fade-out { opacity: 0; transform: scale(0.9); pointer-events: none; }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="canvas-bg">
 
-    <header class="bg-white border-b px-4 py-3 flex items-center justify-between z-50 shadow-sm">
-        <div class="flex items-center gap-4 overflow-x-auto no-scrollbar" id="members-bar"></div>
-        <div id="user-ctrl" class="hidden flex items-center gap-4 border-l pl-4">
-            <button id="admin-clear" onclick="clearBoard()" class="hidden bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold">CLEAR PUBLIC</button>
-            <div class="text-right">
-                <p id="display-name" class="text-xs font-bold leading-none text-slate-700"></p>
-                <span id="admin-tag" class="hidden text-[9px] text-red-500 font-bold uppercase tracking-widest text-slate-800">Admin</span>
-            </div>
-            <img id="my-avatar" onclick="changeAvatar()" class="w-10 h-10 rounded-full border shadow-sm">
+    <header class="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md border-b px-4 py-2 flex items-center justify-between z-[100] shadow-sm">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar" id="members-bar"></div>
+        <div id="user-ctrl" class="hidden flex items-center gap-2 border-l pl-2">
+            <button id="admin-clear" onclick="clearBoard()" class="hidden bg-red-100 text-red-600 px-2 py-1 rounded-full text-[9px] font-bold uppercase">Clear All</button>
+            <img id="my-avatar" onclick="changeAvatar()" class="w-8 h-8 rounded-full border shadow-sm cursor-pointer">
         </div>
     </header>
 
-    <main class="flex-1 relative flex overflow-hidden">
-        <div id="board" class="flex-1 relative canvas-bg bg-slate-50 overflow-hidden"></div>
-        <aside id="private-space" class="w-[450px] bg-slate-800 border-l-4 border-blue-500/50 relative overflow-hidden">
-            <div id="private-canvas" class="w-full h-full relative">
-                <div class="absolute top-4 left-4 text-[10px] text-blue-400 font-bold uppercase opacity-50 pointer-events-none italic text-white/40">Private Space 🔒</div>
-            </div>
-        </aside>
-    </main>
+    <div id="zone-divider">
+        <div class="absolute top-2 left-4 text-[10px] text-blue-500 font-black uppercase opacity-50 italic">Private Space 🔒</div>
+    </div>
 
-    <footer class="bg-white border-t p-4 z-50 shadow-lg">
-        <div class="max-w-4xl mx-auto flex gap-3">
-            <input id="new-note-text" type="text" placeholder="พิมพ์ข้อความใหม่ที่นี่..." class="flex-1 bg-slate-100 rounded-full px-6 py-3 outline-none focus:ring-2 ring-blue-500 shadow-inner">
-            <button onclick="createNewSticky()" class="bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-md transition active:scale-95">CREATE</button>
+    <div id="notes-layer" class="w-full h-full relative pt-16"></div>
+
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-3 z-[100] shadow-lg">
+        <div class="max-w-4xl mx-auto flex gap-2">
+            <input id="new-note-text" type="text" placeholder="สร้างโน้ตในพื้นที่ส่วนตัว..." class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500">
+            <button onclick="createNewSticky()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow-md active:scale-95 transition">CREATE</button>
         </div>
     </footer>
 
-    <div id="auth-screen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border-t-8 border-blue-600 text-slate-800">
-            <h2 class="text-3xl font-bold mb-6 italic">StickySpace Beta7.3</h2>
-            <input id="auth-user" type="text" placeholder="Username" class="w-full border p-4 rounded-2xl mb-3 outline-none font-bold text-center uppercase">
-            <input id="auth-pass" type="password" maxlength="4" placeholder="PIN" class="w-full border p-4 rounded-2xl mb-6 text-center tracking-[1em] outline-none">
-            <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold uppercase">Enter Space</button>
+    <div id="auth-screen" class="fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-[320px] text-center border-t-8 border-blue-600 text-slate-800">
+            <h2 class="text-2xl font-bold mb-4 italic">StickySpace Beta 8.9</h2>
+            <input id="auth-user" type="text" placeholder="USERNAME" class="w-full border p-3 rounded-xl mb-3 outline-none font-bold text-center uppercase">
+            <input id="auth-pass" type="password" maxlength="4" placeholder="PIN" class="w-full border p-3 rounded-xl mb-4 text-center tracking-widest outline-none">
+            <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase">Login</button>
         </div>
     </div>
 
@@ -72,8 +68,7 @@
             apiKey: "AIzaSyDpQtVy8Q4h4dSSeMj-5gnVW_Goce60584",
             authDomain: "stickychat-308ca.firebaseapp.com",
             databaseURL: "https://stickychat-308ca-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "stickychat-308ca",
-            appId: "1:525643340004:web:1a4e23bdf5d51592bef4f1"
+            projectId: "stickychat-308ca", appId: "1:525643340004:web:1a4e23bdf5d51592bef4f1"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -88,18 +83,17 @@
             user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${user.id}`;
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('user-ctrl').classList.remove('hidden');
-            document.getElementById('display-name').innerText = user.name;
             document.getElementById('my-avatar').src = user.avatar;
-            if(user.isAdmin) { document.getElementById('admin-tag').classList.remove('hidden'); document.getElementById('admin-clear').classList.remove('hidden'); }
+            if(user.isAdmin) document.getElementById('admin-clear').classList.remove('hidden');
             set(ref(db, `status/${user.id}`), { id: user.id, name: user.name, avatar: user.avatar, online: true });
             onDisconnect(ref(db, `status/${user.id}`)).update({ online: false });
             initApp();
         };
 
         function initApp() {
-            onValue(ref(db, 'status'), (s) => renderMembers(s.val()));
-            onValue(ref(db, 'public_notes'), (s) => renderUI('board', s.val(), 'public'));
-            onValue(ref(db, `private_notes/${user.id}`), (s) => renderUI('private-canvas', s.val(), 'private'));
+            onValue(ref(db, 'status'), (s) => { if(s.val()) { allUsers = s.val(); renderMembers(s.val()); } });
+            onValue(ref(db, 'public_notes'), (s) => syncUI(s.val(), 'public'));
+            onValue(ref(db, `private_notes/${user.id}`), (s) => syncUI(s.val(), 'private'));
             onValue(ref(db, `chat_master`), (snap) => {
                 const chats = snap.val(); if(!chats) return;
                 Object.keys(chats).forEach(cid => {
@@ -110,186 +104,179 @@
             });
         }
 
-        function renderMembers(data) {
-            const bar = document.getElementById('members-bar'); bar.innerHTML = '';
-            if(!data) return; allUsers = data;
-            Object.keys(data).forEach(uid => {
-                const u = data[uid];
-                const div = document.createElement('div');
-                div.className = "member-icon flex items-center gap-2 bg-white border px-3 py-1 rounded-full shadow-sm hover:bg-slate-50";
-                div.innerHTML = `<div class="relative"><img src="${u.avatar}" class="w-6 h-6 rounded-full border shadow-sm"><div class="${u.online ? 'online-dot' : 'hidden'}"></div></div><span class="text-xs font-bold text-slate-700">${u.name}</span>`;
-                
-                let sX, sY, isD = false;
-                div.onmousedown = (e) => {
-                    sX = e.clientX; sY = e.clientY; isD = false;
-                    const onM = (mv) => {
-                        if(Math.abs(mv.clientX - sX) > 5 || Math.abs(mv.clientY - sY) > 5) {
-                            isD = true; document.removeEventListener('mousemove', onM);
-                            if(uid !== user.id) startIconDrag(e, uid);
-                        }
-                    };
-                    document.addEventListener('mousemove', onM);
-                    document.addEventListener('mouseup', () => {
-                        document.removeEventListener('mousemove', onM);
-                        if(!isD && user.isAdmin && uid !== user.id) {
-                            if(confirm(`ลบสมาชิก ${u.name}?`)) remove(ref(db, `status/${uid}`));
-                        }
-                    }, {once: true});
-                };
-                bar.appendChild(div);
-            });
+        let uiCache = {};
+        function syncUI(data, zone) {
+            if(!data) {
+                Object.keys(uiCache).forEach(id => { if(uiCache[id].zone === zone) { document.querySelector(`[data-id="${id}"]`)?.remove(); delete uiCache[id]; } });
+                return;
+            }
+            Object.keys(data).forEach(id => { uiCache[id] = { ...data[id], zone }; renderNote(id, data[id], zone); });
         }
 
-        function renderUI(containerId, data, zone) {
-            const container = document.getElementById(containerId);
-            container.querySelectorAll('.post-it').forEach(n => n.remove());
-            if(!data) return;
-            Object.keys(data).forEach(id => {
-                const n = data[id];
-                const canControl = (n.pinnedBy === user.id || user.isAdmin || !n.isPinned);
-                const div = document.createElement('div');
-                div.className = `post-it ${n.isChat ? 'is-chat shadow-blue-400' : 'shadow-md'} ${n.isPinned ? 'is-pinned' : ''}`;
-                div.style.left = (n.x || 0) + 'px'; div.style.top = (n.y || 0) + 'px';
-                div.style.zIndex = n.zIndex || 10;
-                div.innerHTML = `
-                    <div class="flex items-center gap-2 mb-2 border-b border-black/5 pb-1 text-[9px] font-bold text-slate-400">
-                        <span onclick="window.togglePin('${id}', '${zone}', ${!!n.isPinned}, '${n.pinnedBy}')" class="cursor-pointer">
-                            ${n.isPinned ? '📌' : '📍'}
-                        </span>
-                        <span>${n.isChat ? `💬 GROUP (${n.active_participants.length})` : 'STUCKY'}</span>
-                        <span onclick="event.stopPropagation(); window.deleteNote('${zone}','${id}', ${!!n.isChat}, ${!!n.isPinned}, '${n.pinnedBy}')" class="ml-auto text-red-500 font-bold cursor-pointer pointer-events-auto">✕</span>
-                    </div>
-                    <div class="chat-area no-scrollbar text-slate-800 pointer-events-none">${(n.messages || []).map(m => 
-                        m.user === 'System' ? `<div class="system-msg">${m.text}</div>` : `<div><strong>${m.user}:</strong> ${m.text}</div>`
-                    ).join('')}</div>
-                    ${n.isChat ? `<input type="text" placeholder="Reply..." class="direct-input" onmousedown="event.stopPropagation()" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)">` : ''}
-                `;
-                div.onmousedown = (e) => { 
-                    if(e.target.tagName !== 'INPUT' && e.target.innerText !== '✕' && !e.target.closest('.cursor-pointer')) {
-                        if(!n.isPinned || n.pinnedBy === user.id || user.isAdmin) elDrag(e, div, id, zone, n);
-                    }
-                };
-                container.appendChild(div);
-            });
+        function renderNote(id, n, zone) {
+            let div = document.querySelector(`[data-id="${id}"]`);
+            if(!div) {
+                div = document.createElement('div');
+                div.setAttribute('data-id', id);
+                document.getElementById('notes-layer').appendChild(div);
+            }
+            if(div.classList.contains('dragging')) return;
+            div.className = `post-it ${n.isChat ? 'is-chat' : ''} ${n.isPinned ? 'is-pinned' : ''}`;
+            div.style.left = n.x + 'px'; div.style.top = n.y + 'px';
+            div.style.zIndex = n.zIndex || 10;
+            div.innerHTML = `
+                <div class="flex items-center gap-2 mb-1 border-b border-black/5 pb-1 text-[9px] font-bold text-slate-400">
+                    <span onclick="window.togglePin('${id}', '${zone}', ${!!n.isPinned}, '${n.pinnedBy}')" class="cursor-pointer">${n.isPinned ? '📌' : '📍'}</span>
+                    <span class="truncate uppercase">${n.isChat ? '💬 CHAT' : 'NOTE'}</span>
+                    <span onclick="event.stopPropagation(); window.deleteNote('${zone}','${id}', ${!!n.isChat}, ${!!n.isPinned}, '${n.pinnedBy}')" class="ml-auto text-red-500 font-bold cursor-pointer">✕</span>
+                </div>
+                <div class="chat-area no-scrollbar text-slate-800 pointer-events-none">${(n.messages || []).map(m => `<div><strong>${m.user}:</strong> ${m.text}</div>`).join('')}</div>
+                ${n.isChat ? `<input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)">` : ''}
+            `;
+            const startD = (e) => { if(e.target.tagName !== 'INPUT' && e.target.innerText !== '✕' && !e.target.closest('span')) { if(!n.isPinned || user.isAdmin || n.pinnedBy === user.id) elDrag(e, div, id, zone, n); } };
+            div.onmousedown = startD; div.ontouchstart = startD;
         }
-
-        window.togglePin = (id, zone, current, pBy) => {
-            if(current && pBy !== user.id && !user.isAdmin) { alert("ไม่มีสิทธิ์ปลดหมุด!"); return; }
-            const path = zone === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
-            update(ref(db, path), { isPinned: !current, pinnedBy: !current ? user.id : null });
-            if(id.startsWith('chat_')) update(ref(db, `chat_master/${id}`), { isPinned: !current, pinnedBy: !current ? user.id : null });
-        };
-
-        window.deleteNote = (zone, id, isChat, isPinned, pBy) => {
-            if(isPinned && pBy !== user.id && !user.isAdmin && zone !== 'private') { alert("ล็อกอยู่!"); return; }
-            if(!confirm('ลบโน้ต?')) return;
-            if(isChat) {
-                remove(ref(db, `private_notes/${user.id}/${id}`));
-                get(ref(db, `chat_master/${id}`)).then(s => {
-                    const d = s.val(); if(d) {
-                        const rem = (d.active_participants || []).filter(p => p !== user.id);
-                        const msgs = d.messages || []; msgs.push({user: 'System', text: `${user.name} ออกจากกลุ่ม`});
-                        if(rem.length === 0) remove(ref(db, `chat_master/${id}`));
-                        else {
-                            const up = {...d, active_participants: rem, messages: msgs};
-                            set(ref(db, `chat_master/${id}`), up);
-                            rem.forEach(pid => update(ref(db, `private_notes/${pid}/${id}`), up));
-                        }
-                    }
-                });
-            } else { remove(ref(db, zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`)); }
-        };
 
         function elDrag(e, el, id, zone, data) {
-            const rect = el.getBoundingClientRect();
-            const offX = e.clientX-rect.left, offY = e.clientY-rect.top;
+            const evS = e.touches ? e.touches[0] : e;
+            const offX = evS.clientX - el.offsetLeft;
+            const offY = evS.clientY - el.offsetTop;
             const oX = data.x, oY = data.y;
-            const onMove = (ev) => { requestAnimationFrame(() => { el.style.position = 'fixed'; el.style.left=(ev.clientX-offX)+'px'; el.style.top=(ev.clientY-offY)+'px'; el.style.zIndex = 10000; }); };
-            const onUp = (ev) => {
-                document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
-                const pR = document.getElementById('private-space').getBoundingClientRect(), bR = document.getElementById('board').getBoundingClientRect();
-                let nZ = ev.clientX > pR.left ? 'private' : 'public', nX = ev.clientX-offX- (nZ==='private' ? pR.left : bR.left), nY = ev.clientY-offY-70;
+            el.classList.add('dragging');
 
-                if (zone === 'public' && nZ === 'private') {
-                    el.style.position = 'absolute'; el.style.left = oX + 'px'; el.style.top = oY + 'px';
-                    push(ref(db, `private_notes/${user.id}`), {...data, x: nX, y: nY, zIndex: ++highestZ});
-                    update(ref(db, `public_notes/${id}`), {x: oX, y: oY});
-                } else if (zone === 'private' && nZ === 'public') {
-                    if(data.isChat) { el.style.position='absolute'; el.style.left=oX+'px'; el.style.top=oY+'px'; }
-                    else { remove(ref(db, `private_notes/${user.id}/${id}`)); set(ref(db, `public_notes/${id}`), {...data, x: nX, y: nY, zIndex: ++highestZ}); }
-                } else { update(ref(db, (zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`)), {x: nX, y: nY, zIndex: ++highestZ}); }
+            const onM = (mv) => {
+                const evM = mv.touches ? mv.touches[0] : mv;
+                const divR = document.getElementById('zone-divider').getBoundingClientRect();
+                let curX = evM.clientX - offX; let curY = evM.clientY - offY;
+                if(data.isChat) {
+                    if(window.innerWidth < 768) { if(curY < divR.top) curY = divR.top; }
+                    else { if(curX < divR.left) curX = divR.left; }
+                }
+                requestAnimationFrame(() => { el.style.left = curX + 'px'; el.style.top = curY + 'px'; el.style.zIndex = 10000; });
             };
-            document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+
+            const onE = (ev) => {
+                document.removeEventListener(e.touches ? 'touchmove' : 'mousemove', onM);
+                document.removeEventListener(e.touches ? 'touchend' : 'mouseup', onE);
+                el.classList.remove('dragging');
+                const evE = ev.changedTouches ? ev.changedTouches[0] : ev;
+                const divR = document.getElementById('zone-divider').getBoundingClientRect();
+                let finX = evE.clientX - offX; let finY = evE.clientY - offY;
+                let inP = (window.innerWidth < 768) ? (evE.clientY > divR.top) : (evE.clientX > divR.left);
+
+                // MOVE LOGIC
+                if (zone === 'public' && inP) {
+                    remove(ref(db, `public_notes/${id}`));
+                    set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY});
+                } else if (zone === 'private' && !inP) {
+                    if(data.isChat) { update(ref(db, `private_notes/${user.id}/${id}`), {x: oX, y: oY}); return; }
+                    remove(ref(db, `private_notes/${user.id}/${id}`));
+                    set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY});
+                } else {
+                    const path = zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
+                    update(ref(db, path), {x: finX, y: finY, zIndex: ++highestZ});
+                }
+            };
+            document.addEventListener(e.touches ? 'touchmove' : 'mousemove', onM);
+            document.addEventListener(e.touches ? 'touchend' : 'mouseup', onE);
         }
 
-        function startIconDrag(e, targetUid) {
-            const clone = document.createElement('div');
-            clone.className = "fixed z-[20000] opacity-80 pointer-events-none flex items-center gap-2 bg-white border px-3 py-1 rounded-full shadow-lg";
-            clone.innerHTML = `<img src="${allUsers[targetUid].avatar}" class="w-6 h-6 rounded-full border shadow-sm"><span class="text-xs font-bold text-slate-700">${allUsers[targetUid].name}</span>`;
-            document.body.appendChild(clone);
-            const onMove = (ev) => { requestAnimationFrame(() => { clone.style.left = (ev.clientX-30)+'px'; clone.style.top = (ev.clientY-15)+'px'; }); };
-            const onUp = (ev) => {
-                document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
-                const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.is-chat');
-                const pR = document.getElementById('private-space').getBoundingClientRect();
-                if (hit) {
-                    const rect = hit.getBoundingClientRect();
-                    get(ref(db, `private_notes/${user.id}`)).then(s => {
-                        const notes = s.val(); if(!notes) return;
-                        Object.keys(notes).forEach(id => {
-                            if(notes[id].isChat && Math.abs(notes[id].x - (rect.left - pR.left)) < 10) {
-                                const act = notes[id].active_participants || [];
-                                if(!act.includes(targetUid)) {
-                                    const nAct = [...act, targetUid];
-                                    const msgs = notes[id].messages || []; msgs.push({user: 'System', text: `${allUsers[targetUid].name} เข้ากลุ่ม`});
-                                    const up = {...notes[id], active_participants: nAct, messages: msgs};
-                                    set(ref(db, `chat_master/${id}`), up);
-                                    nAct.forEach(pid => update(ref(db, `private_notes/${pid}/${id}`), up));
-                                }
-                            }
-                        });
+        window.deleteNote = (zone, id, isC, isP, pB) => {
+            if(isP && pB !== user.id && !user.isAdmin && zone !== 'private') return;
+            if(!confirm('ลบ?')) return;
+            
+            const el = document.querySelector(`[data-id="${id}"]`);
+            if(el) el.classList.add('fade-out');
+
+            setTimeout(() => {
+                if(isC) {
+                    const mRef = ref(db, `chat_master/${id}`);
+                    get(mRef).then(s => {
+                        const d = s.val(); if(!d) return;
+                        const rem = (d.active_participants || []).filter(p => p !== user.id);
+                        remove(ref(db, `private_notes/${user.id}/${id}`));
+                        if(rem.length === 0) remove(mRef);
+                        else {
+                            const up = {...d, active_participants: rem};
+                            set(mRef, up);
+                            rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), up));
+                        }
                     });
-                } else if (ev.clientX > pR.left) {
-                    const chatId = "chat_" + Date.now();
-                    const chatData = { ownerId: user.id, isChat: true, active_participants: [user.id, targetUid], messages: [{user: 'System', text: `เริ่มแชทกับ ${allUsers[targetUid].name}`}], x: ev.clientX - pR.left - 100, y: ev.clientY - 120, zIndex: ++highestZ };
-                    set(ref(db, `chat_master/${chatId}`), chatData);
-                    [user.id, targetUid].forEach(pid => set(ref(db, `private_notes/${pid}/${chatId}`), chatData));
-                }
-                clone.remove();
-            };
-            document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
-        }
-
-        window.replyInNote = (id, text) => {
-            if(!text.trim()) return;
-            get(ref(db, `chat_master/${id}`)).then(s => {
-                const d = s.val(); if(d) {
-                    const m = d.messages || []; m.push({user: user.name, text: text.trim()});
-                    const up = {...d, messages: m, zIndex: ++highestZ};
-                    set(ref(db, `chat_master/${id}`), up);
-                    d.active_participants.forEach(pid => update(ref(db, `private_notes/${pid}/${id}`), up));
-                }
-            });
+                } else remove(ref(db, zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`));
+            }, 150);
         };
 
         window.createNewSticky = () => {
-            const txt = document.getElementById('new-note-text').value.trim();
-            if(!txt) return;
-            // Standard PUSH - Guaranteed to work
-            push(ref(db, `private_notes/${user.id}`), {
-                ownerId: user.id,
-                messages: [{user: user.name, text: txt}],
-                x: 20, y: 50, zIndex: ++highestZ,
-                isChat: false, isPinned: false
+            const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return;
+            const nid = "note_" + Date.now();
+            const divR = document.getElementById('zone-divider').getBoundingClientRect();
+            let startX = (window.innerWidth < 768) ? 20 : (divR.left + 20);
+            let startY = (window.innerWidth < 768) ? (divR.top + 20) : 80;
+            
+            set(ref(db, `private_notes/${user.id}/${nid}`), { 
+                ownerId: user.id, messages: [{user: user.name, text: txt}], x: startX, y: startY, zIndex: ++highestZ, isChat: false, isPinned: false 
             });
             document.getElementById('new-note-text').value = '';
         };
 
-        window.changeAvatar = () => {
-            const ns = Math.random().toString(36).substring(7); user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`;
-            document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), {avatar: user.avatar});
+        function startIconDrag(e, tUid) {
+            const sE = e.touches ? e.touches[0] : e;
+            const cl = document.createElement('div');
+            cl.className = "fixed z-[20000] opacity-90 pointer-events-none bg-white border px-3 py-1 rounded-full shadow-2xl text-[11px] font-bold flex items-center gap-2";
+            cl.innerHTML = `<img src="${allUsers[tUid].avatar}" class="w-5 h-5 rounded-full"><span>${allUsers[tUid].name}</span>`;
+            document.body.appendChild(cl);
+            const om = (m) => { const me = m.touches ? m.touches[0] : m; requestAnimationFrame(() => { cl.style.left = (me.clientX-30)+'px'; cl.style.top = (me.clientY-15)+'px'; }); };
+            const oe = (v) => {
+                document.removeEventListener(e.touches ? 'touchmove' : 'mousemove', om); document.removeEventListener(e.touches ? 'touchend' : 'mouseup', oe);
+                const ee = v.changedTouches ? v.changedTouches[0] : v;
+                const hN = document.elementFromPoint(ee.clientX, ee.clientY)?.closest('.is-chat');
+                const dR = document.getElementById('zone-divider').getBoundingClientRect();
+                let iP = (window.innerWidth < 768) ? (ee.clientY > dR.top) : (ee.clientX > dR.left);
+
+                if(hN) {
+                    const cid = hN.getAttribute('data-id');
+                    get(ref(db, `chat_master/${cid}`)).then(s => { 
+                        const d = s.val(); if(d && !d.active_participants.includes(tUid)) {
+                            const nAct = [...d.active_participants, tUid];
+                            const msgs = d.messages || []; msgs.push({user: 'System', text: `${allUsers[tUid].name} Joined`});
+                            const up = {...d, active_participants: nAct, messages: msgs};
+                            // ATOMIC UPDATE
+                            const updates = {};
+                            updates[`chat_master/${cid}`] = up;
+                            nAct.forEach(pid => { updates[`private_notes/${pid}/${cid}`] = up; });
+                            update(ref(db), updates);
+                        }
+                    });
+                } else if(iP) {
+                    const cid = "chat_" + Date.now();
+                    const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `Chat Started`}], x: ee.clientX-100, y: ee.clientY-120, zIndex: ++highestZ };
+                    const updates = {};
+                    updates[`chat_master/${cid}`] = cd;
+                    updates[`private_notes/${user.id}/${cid}`] = cd;
+                    updates[`private_notes/${tUid}/${cid}`] = cd;
+                    update(ref(db), updates);
+                }
+                cl.remove();
+            };
+            document.addEventListener(e.touches ? 'touchmove' : 'mousemove', om); document.addEventListener(e.touches ? 'touchend' : 'mouseup', oe);
+        }
+
+        window.togglePin = (id, zone, current, pBy) => { if(current && pBy !== user.id && !user.isAdmin) return; update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), { isPinned: !current, pinnedBy: !current?user.id:null }); };
+        window.replyInNote = (id, text) => { if(!text.trim()) return; get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(d) { const m = d.messages || []; m.push({user: user.name, text: text.trim()}); update(ref(db, `chat_master/${id}`), {messages: m}); d.active_participants.forEach(p => update(ref(db, `private_notes/${p}/${id}`), {messages: m})); } }); document.getElementById(`reply-${id}`).value = ''; };
+        window.changeAvatar = () => { const ns = Math.random().toString(36).substring(7); user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`; document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), {avatar: user.avatar}); };
+        window.clearBoard = () => { if(confirm('Clear?')) set(ref(db, 'public_notes'), null); };
+        window.renderMembers = (data) => {
+            const bar = document.getElementById('members-bar'); bar.innerHTML = '';
+            Object.keys(data).forEach(uid => {
+                const u = data[uid];
+                const div = document.createElement('div');
+                div.className = "flex-shrink-0 flex items-center gap-1 bg-white border px-2 py-1 rounded-full shadow-sm text-[10px] font-bold cursor-pointer";
+                div.innerHTML = `<div class="relative"><img src="${u.avatar}" class="w-5 h-5 rounded-full border shadow-sm"><div class="${u.online ? 'online-dot' : 'hidden'}"></div></div><span>${u.name}</span>`;
+                div.onmousedown = (e) => { let sx = e.clientX, sy = e.clientY, isd = false; const om = (m) => { if(Math.abs(m.clientX-sx)>10 || Math.abs(m.clientY-sy)>10) { isd=true; document.removeEventListener('mousemove', om); if(uid!==user.id) startIconDrag(e, uid); } }; document.addEventListener('mousemove', om); document.addEventListener('mouseup', () => { document.removeEventListener('mousemove', om); if(!isd && user.isAdmin && uid!==user.id) if(confirm(`Delete ${u.name}?`)) remove(ref(db, `status/${uid}`)); }, {once:true}); };
+                div.ontouchstart = (e) => { let sx = e.touches[0].clientX, sy = e.touches[0].clientY, isd = false; const om = (m) => { if(Math.abs(m.touches[0].clientX-sx)>10 || Math.abs(m.touches[0].clientY-sy)>10) { isd=true; document.removeEventListener('touchmove', om); if(uid!==user.id) startIconDrag(e, uid); } }; document.addEventListener('touchmove', om); document.addEventListener('touchend', () => { document.removeEventListener('touchmove', om); if(!isd && user.isAdmin && uid!==user.id) if(confirm(`Delete ${u.name}?`)) remove(ref(db, `status/${uid}`)); }, {once:true}); };
+                bar.appendChild(div);
+            });
         };
-        window.clearBoard = () => { if(confirm('Clear Public Board?')) set(ref(db, 'public_notes'), null); };
     </script>
 </body>
 </html>
