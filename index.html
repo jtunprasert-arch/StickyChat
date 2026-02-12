@@ -3,15 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StickySpace Beta 9.3 - Movement Fix</title>
+    <title>StickySpace Beta 9.5 - Area-Locked Sync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kanit:wght@300;400&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; touch-action: none; }
         .canvas-bg { background-color: #f1f5f9; background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 20px 20px; width: 100vw; height: 100vh; position: relative; }
         #zone-divider { position: absolute; pointer-events: none; z-index: 1; border-color: rgba(59, 130, 246, 0.4); }
-        @media (max-width: 767px) { #zone-divider { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; background: rgba(30, 41, 59, 0.1); } }
-        @media (min-width: 768px) { #zone-divider { height: 100%; width: 400px; right: 0; border-left-width: 4px; background: rgba(30, 41, 59, 0.05); } }
+        
+        /* Layout logic */
+        @media (max-width: 767px) { 
+            #zone-divider { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; background: rgba(30, 41, 59, 0.1); } 
+        }
+        @media (min-width: 768px) { 
+            #zone-divider { height: 100%; width: 400px; right: 0; border-left-width: 4px; background: rgba(30, 41, 59, 0.05); } 
+        }
+
         .post-it { 
             width: 180px; min-height: 220px; position: absolute; padding: 10px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 8px; 
@@ -22,9 +29,8 @@
         .is-chat { border: 3px solid #3b82f6 !important; background-color: #eff6ff !important; }
         .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; margin-bottom: 8px; max-height: 120px; }
         .direct-input { font-size: 10px; padding: 6px 12px; border-radius: 99px; border: 1px solid #ddd; outline: none; width: 100%; background: white; }
-        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; display: block !important; }
-        .timestamp { font-size: 8px; color: #94a3b8; position: absolute; bottom: 4px; right: 8px; }
-        .dragging { opacity: 0.8; cursor: grabbing !important; box-shadow: 0 20px 40px rgba(0,0,0,0.2) !important; }
+        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; }
+        .timestamp { font-size: 8px; color: #64748b; font-weight: 600; line-height: 1; margin-top: 2px; }
     </style>
 </head>
 <body class="canvas-bg">
@@ -45,17 +51,17 @@
 
     <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-3 z-[100] shadow-lg">
         <div class="max-w-4xl mx-auto flex gap-2">
-            <input id="new-note-text" type="text" placeholder="พิมพ์ข้อความใหม่..." class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500">
+            <input id="new-note-text" type="text" placeholder="สร้างโน้ตใหม่..." class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500">
             <button onclick="createNewSticky()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow-md active:scale-95 transition">CREATE</button>
         </div>
     </footer>
 
     <div id="auth-screen" class="fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-[320px] text-center border-t-8 border-blue-600">
-            <h2 class="text-2xl font-bold mb-4 italic text-slate-800">StickySpace Beta 9.3</h2>
+            <h2 class="text-2xl font-bold mb-4 italic text-slate-800">StickySpace Beta 9.5</h2>
             <input id="auth-user" type="text" placeholder="USERNAME" class="w-full border p-3 rounded-xl mb-3 outline-none font-bold text-center uppercase">
             <input id="auth-pass" type="password" maxlength="4" placeholder="PIN" class="w-full border p-3 rounded-xl mb-4 text-center tracking-widest outline-none">
-            <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase">Enter Space</button>
+            <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase">Start</button>
         </div>
     </div>
 
@@ -75,6 +81,7 @@
         let user = { id: '', name: '', avatar: '', isAdmin: false };
         let allUsers = {}, highestZ = 10000;
 
+        // --- Core Functions ---
         window.handleAuth = () => {
             const name = document.getElementById('auth-user').value.trim();
             if(!name) return;
@@ -97,7 +104,10 @@
                 const chats = snap.val(); if(!chats) return;
                 Object.keys(chats).forEach(cid => {
                     if(chats[cid].active_participants?.includes(user.id)) {
-                        update(ref(db, `private_notes/${user.id}/${cid}`), chats[cid]);
+                        get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => {
+                            const pD = pS.val() || {};
+                            update(ref(db, `private_notes/${user.id}/${cid}`), { ...chats[cid], x: pD.x ?? chats[cid].x, y: pD.y ?? chats[cid].y });
+                        });
                     }
                 });
             });
@@ -120,31 +130,52 @@
                 document.getElementById('notes-layer').appendChild(div);
             }
             if(div.classList.contains('dragging')) return;
+            
+            // DEVICE-AWARE POSITIONING for Private Space
+            let finalX = n.x, finalY = n.y;
+            if (zone === 'private') {
+                const isMobile = window.innerWidth < 768;
+                const dR = document.getElementById('zone-divider').getBoundingClientRect();
+                
+                // If the note was saved with percent-pos, restore it relative to current area
+                if (n.pctX !== undefined) {
+                    if (isMobile) {
+                        finalX = n.pctX * window.innerWidth;
+                        finalY = dR.top + (n.pctY * (window.innerHeight - dR.top));
+                    } else {
+                        finalX = dR.left + (n.pctX * (window.innerWidth - dR.left));
+                        finalY = n.pctY * window.innerHeight;
+                    }
+                }
+            }
+
             div.className = `post-it ${n.isChat ? 'is-chat shadow-blue-300' : 'shadow-md'}`;
-            div.style.left = n.x + 'px'; div.style.top = n.y + 'px';
+            div.style.left = finalX + 'px'; div.style.top = finalY + 'px';
             div.style.zIndex = n.zIndex || 10;
             
             const canManage = (zone === 'private' || user.isAdmin || !n.isPinned || n.pinnedBy === user.id);
 
             div.innerHTML = `
-                <div class="flex items-center gap-2 mb-1 border-b border-black/5 pb-1 text-[9px] font-bold text-slate-400">
-                    <span onclick="window.togglePin('${id}', '${zone}', ${!!n.isPinned}, '${n.pinnedBy}')" class="cursor-pointer">${n.isPinned ? '📌' : '📍'}</span>
-                    <span class="truncate uppercase">${n.isChat ? '💬 CHAT' : 'NOTE'}</span>
-                    ${canManage ? `<span onclick="event.stopPropagation(); window.deleteNote('${zone}','${id}', ${!!n.isChat}, ${!!n.isPinned}, '${n.pinnedBy}')" class="ml-auto text-red-500 font-bold cursor-pointer text-sm">✕</span>` : ''}
+                <div class="flex flex-col border-b border-black/5 pb-1 mb-1">
+                    <div class="flex items-center gap-2 text-[9px] font-bold text-slate-400">
+                        <span onclick="window.togglePin('${id}', '${zone}', ${!!n.isPinned}, '${n.pinnedBy}')" class="cursor-pointer">${n.isPinned ? '📌' : '📍'}</span>
+                        <span class="truncate uppercase">${n.isChat ? '💬 CHAT' : 'NOTE'}</span>
+                        ${canManage ? `<span onclick="event.stopPropagation(); window.deleteNote('${zone}','${id}', ${!!n.isChat}, ${!!n.isPinned}, '${n.pinnedBy}')" class="ml-auto text-red-500 font-bold cursor-pointer text-sm">✕</span>` : ''}
+                    </div>
+                    <div class="timestamp pl-4">${n.time || ''}</div>
                 </div>
                 <div class="chat-area no-scrollbar text-slate-800 pointer-events-none">${(n.messages || []).map(m => `<div><strong>${m.user}:</strong> ${m.text}</div>`).join('')}</div>
                 ${n.isChat ? `
                     <div class="flex gap-1 mt-auto">
                         <input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input flex-1" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)">
-                        <button onclick="window.replyInNote('${id}', document.getElementById('reply-${id}').value)" class="bg-blue-500 text-white text-[8px] px-2 py-1 rounded-full font-bold">SEND</button>
+                        <button onclick="window.replyInNote('${id}', document.getElementById('reply-${id}').value)" class="bg-blue-600 text-white text-[8px] px-2 py-1 rounded-full font-bold">SEND</button>
                     </div>
                 ` : ''}
-                <div class="timestamp">${n.time || ''}</div>
             `;
             
             const startD = (e) => { 
                 if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.innerText !== '✕' && !e.target.closest('span')) {
-                    elDrag(e, div, id, zone, n); 
+                    if(canManage) { highestZ += 1; div.style.zIndex = highestZ; elDrag(e, div, id, zone, n); }
                 } 
             };
             div.onmousedown = startD; div.ontouchstart = startD;
@@ -158,18 +189,14 @@
             const oX = data.x, oY = data.y;
             
             el.classList.add('dragging');
-            highestZ += 1;
-            el.style.zIndex = 10000; // Always top while dragging
 
             const onM = (mv) => {
                 const evM = mv.touches ? mv.touches[0] : mv;
-                const divR = document.getElementById('zone-divider').getBoundingClientRect();
+                const dR = document.getElementById('zone-divider').getBoundingClientRect();
                 let curX = evM.clientX - offX; let curY = evM.clientY - offY;
-                
-                // Chat Lockdown Boundary Logic
                 if(data.isChat) {
-                    if(window.innerWidth < 768) { if(curY < divR.top) curY = divR.top; }
-                    else { if(curX < divR.left) curX = divR.left; }
+                    if(window.innerWidth < 768) { if(curY < dR.top) curY = dR.top; }
+                    else { if(curX < dR.left) curX = dR.left; }
                 }
                 requestAnimationFrame(() => { el.style.left = curX + 'px'; el.style.top = curY + 'px'; });
             };
@@ -179,24 +206,34 @@
                 document.removeEventListener(e.touches ? 'touchend' : 'mouseup', onE);
                 el.classList.remove('dragging');
                 const evE = ev.changedTouches ? ev.changedTouches[0] : ev;
-                const divR = document.getElementById('zone-divider').getBoundingClientRect();
+                const dR = document.getElementById('zone-divider').getBoundingClientRect();
+                
                 let finX = evE.clientX - offX; let finY = evE.clientY - offY;
-                let inP = (window.innerWidth < 768) ? (evE.clientY > divR.top) : (evE.clientX > divR.left);
+                let isM = window.innerWidth < 768;
+                let inP = isM ? (evE.clientY > dR.top) : (evE.clientX > dR.left);
 
-                // Permission check at the end of drag
-                const canManage = (zone === 'private' || user.isAdmin || !data.isPinned || data.pinnedBy === user.id);
-                if(!canManage) { el.style.left = oX + 'px'; el.style.top = oY + 'px'; return; }
+                // Calculate Percent within the Private area for better syncing
+                let pX = 0, pY = 0;
+                if (inP) {
+                    if (isM) {
+                        pX = finX / window.innerWidth;
+                        pY = (finY - dR.top) / (window.innerHeight - dR.top);
+                    } else {
+                        pX = (finX - dR.left) / (window.innerWidth - dR.left);
+                        pY = finY / window.innerHeight;
+                    }
+                }
 
                 if (zone === 'public' && inP) {
                     remove(ref(db, `public_notes/${id}`));
-                    set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, zIndex: ++highestZ});
+                    set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, pctX: pX, pctY: pY, zIndex: ++highestZ});
                 } else if (zone === 'private' && !inP) {
                     if(data.isChat) { update(ref(db, `private_notes/${user.id}/${id}`), {x: oX, y: oY}); return; }
                     remove(ref(db, `private_notes/${user.id}/${id}`));
-                    set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, zIndex: ++highestZ});
+                    set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, pctX: null, pctY: null, zIndex: ++highestZ});
                 } else {
                     const path = zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
-                    update(ref(db, path), {x: finX, y: finY, zIndex: ++highestZ});
+                    update(ref(db, path), {x: finX, y: finY, pctX: inP ? pX : null, pctY: inP ? pY : null, zIndex: ++highestZ});
                 }
             };
             document.addEventListener(e.touches ? 'touchmove' : 'mousemove', onM);
@@ -204,7 +241,7 @@
         }
 
         window.deleteNote = (zone, id, isC, isP, pB) => {
-            if(!confirm('ลบโน้ต?')) return;
+            if(!confirm('ลบ?')) return;
             document.querySelector(`[data-id="${id}"]`)?.remove();
             delete uiCache[id];
             if(isC) {
@@ -214,12 +251,10 @@
                     const rem = (d.active_participants || []).filter(p => p !== user.id);
                     remove(ref(db, `private_notes/${user.id}/${id}`));
                     if(rem.length === 0 || (d.ownerId === user.id && d.messages.length <= 1)) {
-                        remove(mRef);
-                        rem.forEach(pid => remove(ref(db, `private_notes/${pid}/${id}`)));
+                        remove(mRef); rem.forEach(pid => remove(ref(db, `private_notes/${pid}/${id}`)));
                     } else {
                         const up = { ...d, active_participants: rem };
-                        set(mRef, up);
-                        rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), up));
+                        set(mRef, up); rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), up));
                     }
                 });
             } else remove(ref(db, zone==='public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`));
@@ -228,18 +263,26 @@
         window.createNewSticky = () => {
             const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return;
             const nid = "note_" + Date.now();
-            const divR = document.getElementById('zone-divider').getBoundingClientRect();
+            const dR = document.getElementById('zone-divider').getBoundingClientRect();
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-            let startX = (window.innerWidth < 768) ? 20 : (divR.left + 20);
-            let startY = (window.innerWidth < 768) ? (divR.top + 50) : 100;
+            const timeStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            
+            const isM = window.innerWidth < 768;
+            let sX = isM ? 20 : (dR.left + 20);
+            let sY = isM ? (dR.top + 50) : 100;
+            
+            // Initial Percent Position
+            let pX = isM ? (sX / window.innerWidth) : ((sX - dR.left) / (window.innerWidth - dR.left));
+            let pY = isM ? ((sY - dR.top) / (window.innerHeight - dR.top)) : (sY / window.innerHeight);
+
             set(ref(db, `private_notes/${user.id}/${nid}`), { 
                 ownerId: user.id, messages: [{user: user.name, text: txt}], 
-                x: startX, y: startY, zIndex: ++highestZ, isChat: false, isPinned: false, time: timeStr
+                x: sX, y: sY, pctX: pX, pctY: pY, zIndex: ++highestZ, isChat: false, isPinned: false, time: timeStr
             });
             document.getElementById('new-note-text').value = '';
         };
 
+        // --- Same Logic for Members, Chat Drag, Pin, Reply ---
         window.replyInNote = (id, text) => {
             if(!text.trim()) return;
             const mRef = ref(db, `chat_master/${id}`);
@@ -251,7 +294,6 @@
             });
             const input = document.getElementById(`reply-${id}`); if(input) input.value = '';
         };
-
         window.renderMembers = (data) => {
             const bar = document.getElementById('members-bar'); bar.innerHTML = '';
             Object.keys(data).forEach(uid => {
@@ -264,15 +306,11 @@
                     let sx = s.clientX, sy = s.clientY, isd = false;
                     const om = (m) => { const me = m.touches ? m.touches[0] : m; if(Math.abs(me.clientX-sx)>10 || Math.abs(me.clientY-sy)>10) { isd=true; document.removeEventListener(e.touches?'touchmove':'mousemove', om); if(uid!==user.id) startIconDrag(e, uid); } };
                     document.addEventListener(e.touches?'touchmove':'mousemove', om);
-                    document.addEventListener(e.touches?'touchend':'mouseup', () => { 
-                        document.removeEventListener(e.touches?'touchmove':'mousemove', om); 
-                        if(!isd && user.isAdmin && uid!==user.id) if(confirm(`Delete ${u.name}?`)) remove(ref(db, `status/${uid}`)); 
-                    }, {once:true});
+                    document.addEventListener(e.touches?'touchend':'mouseup', () => { document.removeEventListener(e.touches?'touchmove':'mousemove', om); if(!isd && user.isAdmin && uid!==user.id) if(confirm(`Delete ${u.name}?`)) remove(ref(db, `status/${uid}`)); }, {once:true});
                 };
                 div.onmousedown = sd; div.ontouchstart = sd; bar.appendChild(div);
             });
         };
-
         function startIconDrag(e, tUid) {
             const sE = e.touches ? e.touches[0] : e;
             const cl = document.createElement('div');
@@ -285,7 +323,8 @@
                 const ee = v.changedTouches ? v.changedTouches[0] : v;
                 const hN = document.elementFromPoint(ee.clientX, ee.clientY)?.closest('.is-chat');
                 const dR = document.getElementById('zone-divider').getBoundingClientRect();
-                let iP = (window.innerWidth < 768) ? (ee.clientY > dR.top) : (ee.clientX > dR.left);
+                let isM = window.innerWidth < 768;
+                let iP = isM ? (ee.clientY > dR.top) : (ee.clientX > dR.left);
                 if(hN) {
                     const cid = hN.getAttribute('data-id');
                     get(ref(db, `chat_master/${cid}`)).then(s => { 
@@ -299,8 +338,11 @@
                     });
                 } else if(iP) {
                     const cid = "chat_" + Date.now();
-                    const now = new Date(); const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-                    const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `แชทเริ่มแล้ว`}], x: ee.clientX-100, y: ee.clientY-120, zIndex: ++highestZ, time: timeStr };
+                    const now = new Date(); const timeStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                    // Percentage for creation
+                    let pX = isM ? (ee.clientX / window.innerWidth) : ((ee.clientX - dR.left) / (window.innerWidth - dR.left));
+                    let pY = isM ? ((ee.clientY - dR.top) / (window.innerHeight - dR.top)) : (ee.clientY / window.innerHeight);
+                    const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `แชทเริ่มแล้ว`}], x: ee.clientX-100, y: ee.clientY-120, pctX: pX, pctY: pY, zIndex: ++highestZ, time: timeStr };
                     const updates = {}; updates[`chat_master/${cid}`] = cd; updates[`private_notes/${user.id}/${cid}`] = cd; updates[`private_notes/${tUid}/${cid}`] = cd;
                     update(ref(db), updates);
                 }
@@ -308,7 +350,6 @@
             };
             document.addEventListener(e.touches ? 'touchmove' : 'mousemove', om); document.addEventListener(e.touches ? 'touchend' : 'mouseup', oe);
         }
-
         window.togglePin = (id, zone, current, pBy) => { if(current && pBy !== user.id && !user.isAdmin) return; update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), { isPinned: !current, pinnedBy: !current?user.id:null }); };
         window.changeAvatar = () => { const ns = Math.random().toString(36).substring(7); user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`; document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), {avatar: user.avatar}); };
         window.clearBoard = () => { if(confirm('Clear Board?')) set(ref(db, 'public_notes'), null); };
