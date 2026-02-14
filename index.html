@@ -3,38 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StickySpace Stable 1.4 - Timestamp Fixed</title>
+    <title>StickySpace Stable 1.7 - Position Lock</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kanit:wght@300;400&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', 'Kanit', sans-serif; overflow: hidden; background: #f1f5f9; user-select: none; touch-action: none; margin: 0; }
         #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
         #canvas { width: 5000px; height: 5000px; position: absolute; background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 20px 20px; will-change: transform; }
-        #notes-layer { position: absolute; top: 0; left: 0; z-index: 20; pointer-events: none; width: 100%; height: 100%; }
+        #notes-layer { position: absolute; top: 0; left: 0; z-index: 20; width: 100%; height: 100%; pointer-events: none; }
         
-        .post-it { width: 210px; min-height: 255px; position: absolute; padding: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px; cursor: grab; touch-action: none; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.05); background-color: #fef9c3; pointer-events: auto; box-sizing: border-box; }
+        .post-it { width: 210px; min-height: 260px; position: absolute; padding: 12px; border-radius: 12px; background-color: #fef9c3; border: 1px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; pointer-events: auto; cursor: grab; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); box-sizing: border-box; }
         .is-chat { border: 3px solid #3b82f6 !important; background-color: #eff6ff !important; }
-        .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; margin-bottom: 8px; max-height: 120px; pointer-events: auto; scrollbar-width: none; line-height: 1.4; }
-        .chat-area::-webkit-scrollbar { display: none; }
+        .chat-area { flex-grow: 1; overflow-y: auto; font-size: 11px; max-height: 120px; scrollbar-width: none; line-height: 1.4; }
         
-        .chat-input-wrapper { display: flex; gap: 4px; margin-top: auto; width: 100%; box-sizing: border-box; align-items: center; }
-        .direct-input { font-size: 10px; padding: 8px 12px; border-radius: 99px; border: 1px solid #ddd; outline: none; flex: 1; min-width: 0; background: white; pointer-events: auto; box-sizing: border-box; }
+        .chat-input-wrapper { display: flex; gap: 4px; margin-top: 8px; width: 100%; box-sizing: border-box; }
+        .direct-input, .edit-mode-input { font-size: 10px; padding: 8px 12px; border-radius: 99px; border: 1px solid #ddd; outline: none; background: white; width: 100%; box-sizing: border-box; }
         
-        .btn-del { position: absolute; top: 6px; right: 6px; z-index: 100; padding: 5px; color: #ef4444; font-weight: bold; cursor: pointer; pointer-events: auto; font-size: 18px; line-height: 1; }
-        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; box-shadow: 0 0 5px #22c55e; }
-        
-        .member-card { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 55px; pointer-events: auto; }
-        .is-offline { opacity: 0.4; filter: grayscale(1); }
-        .member-name { font-size: 9px; font-weight: 700; color: #475569; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .admin-badge { position: absolute; top: -6px; left: -6px; font-size: 12px; filter: drop-shadow(0 0 2px gold); z-index: 30; }
+        .btn-del, .btn-edit { position: absolute; top: 8px; font-weight: bold; cursor: pointer; z-index: 10; }
+        .btn-del { right: 8px; color: #ef4444; font-size: 18px; }
+        .btn-edit { right: 32px; font-size: 14px; opacity: 0.6; }
+        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid white; }
+        .admin-badge { position: absolute; top: -6px; left: -6px; z-index: 30; filter: drop-shadow(0 0 2px gold); }
         
         #private-barrier { position: fixed; z-index: 5; pointer-events: none; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.03); }
         @media (max-width: 767px) { #private-barrier { width: 100%; height: 40%; bottom: 0; border-top-width: 4px; } }
         @media (min-width: 768px) { #private-barrier { height: 100%; width: 400px; right: 0; border-left-width: 4px; } }
         
-        /* Time labels */
-        .note-time-stamp { font-size: 8px; color: #94a3b8; font-weight: 600; margin-top: 6px; align-self: flex-end; display: block; border-top: 1px dashed rgba(0,0,0,0.05); width: 100%; text-align: right; padding-top: 4px; }
-        .msg-time { font-size: 8px; color: #94a3b8; margin-left: 4px; font-weight: normal; }
+        .time-labels { font-size: 7.5px; color: #94a3b8; border-top: 1px dashed rgba(0,0,0,0.05); padding-top: 4px; text-align: right; margin-top: 6px; }
+        .dragging { opacity: 0.9 !important; z-index: 10000 !important; cursor: grabbing; scale: 1.05; }
     </style>
 </head>
 <body>
@@ -42,28 +38,28 @@
     <header class="fixed top-0 left-0 right-0 bg-white/95 border-b px-4 py-2 flex items-center justify-between z-[100] shadow-sm pointer-events-none">
         <div class="flex items-center gap-4 overflow-x-auto no-scrollbar py-1 pointer-events-auto" id="members-bar"></div>
         <div id="user-ctrl" class="hidden flex items-center gap-2 border-l pl-2 pointer-events-auto">
-            <button id="admin-clear" onclick="clearBoard()" class="hidden bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase">Clear All</button>
+            <button id="admin-clear" onclick="clearBoard()" class="hidden bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold">CLEAR PUBLIC</button>
             <img id="my-avatar" onclick="changeAvatar()" class="w-10 h-10 rounded-full border shadow-sm cursor-pointer">
         </div>
     </header>
 
     <div id="viewport">
         <div id="canvas"><div id="notes-layer"></div></div>
-        <div id="private-barrier"><div class="absolute top-2 left-4 text-[10px] text-blue-500 font-black uppercase opacity-60 italic">Private Space 🔒</div></div>
+        <div id="private-barrier"><div class="absolute top-2 left-4 text-[10px] text-blue-500 font-bold opacity-60 italic">Private Space 🔒</div></div>
     </div>
 
-    <button onclick="resetView()" class="fixed bottom-24 right-6 w-12 h-12 bg-white border-2 border-blue-500 rounded-full z-[80] shadow-lg text-blue-500 flex items-center justify-center font-bold">🏠</button>
+    <button onclick="resetView()" class="fixed bottom-24 right-6 w-12 h-12 bg-white border-2 border-blue-500 rounded-full z-[80] shadow-lg text-blue-500 font-bold">🏠</button>
 
     <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-3 z-[100] shadow-xl">
         <div class="max-w-4xl mx-auto flex gap-2">
-            <input id="new-note-text" type="text" placeholder="พิมพ์ข้อความใหม่..." class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500" onkeypress="if(event.key === 'Enter') createNewSticky()">
-            <button onclick="createNewSticky()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow-md">CREATE</button>
+            <input id="new-note-text" type="text" placeholder="สร้างโน้ตใหม่..." class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 ring-blue-500" onkeypress="if(event.key === 'Enter') createNewSticky()">
+            <button onclick="createNewSticky()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm">CREATE</button>
         </div>
     </footer>
 
     <div id="auth-screen" class="fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-[320px] text-center border-t-8 border-blue-600">
-            <h2 class="text-2xl font-bold mb-4 uppercase text-slate-800 italic underline decoration-blue-500">Stable 1.4</h2>
+            <h2 class="text-2xl font-bold mb-4 uppercase text-slate-800 italic underline decoration-blue-500">Stable 1.7</h2>
             <input id="auth-user" type="text" placeholder="USERNAME" class="w-full border p-3 rounded-xl mb-3 outline-none font-bold text-center uppercase">
             <input id="auth-pass" type="password" maxlength="4" placeholder="PIN" class="w-full border p-3 rounded-xl mb-4 text-center tracking-widest outline-none">
             <button onclick="handleAuth()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Login</button>
@@ -77,23 +73,14 @@
         const firebaseConfig = { apiKey: "AIzaSyDpQtVy8Q4h4dSSeMj-5gnVW_Goce60584", authDomain: "stickychat-308ca.firebaseapp.com", databaseURL: "https://stickychat-308ca-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "stickychat-308ca", appId: "1:525643340004:web:1a4e23bdf5d51592bef4f1" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        
         let user = { id: '', name: '', avatar: '', session: '' };
-        let panX = 0, panY = 0, highestZ = 10000, allUsers = {}, lastOnlineStatus = {};
+        let panX = 0, panY = 0, highestZ = 10000;
+        let allUsers = {}, lastOnlineStatus = {}, editStates = {};
 
         const vp = document.getElementById('viewport'), cv = document.getElementById('canvas');
-
-        const getTime = () => { const d = new Date(); return d.getHours().toString().padStart(2, '0') + ":" + d.getMinutes().toString().padStart(2, '0'); };
-        const getFullDateTime = () => { const d = new Date(); return d.toLocaleDateString('th-TH', {day:'2-digit', month:'2-digit', year:'2-digit'}) + " " + getTime(); };
-
-        vp.addEventListener('touchstart', (e) => {
-            if (e.target.id === 'canvas' || e.target.id === 'viewport') {
-                const sX = e.touches[0].clientX - panX, sY = e.touches[0].clientY - panY;
-                const onM = (m) => { panX = m.touches[0].clientX - sX; panY = m.touches[0].clientY - sY; cv.style.transform = `translate(${panX}px, ${panY}px)`; };
-                const onE = () => { vp.removeEventListener('touchmove', onM); vp.removeEventListener('touchend', onE); };
-                vp.addEventListener('touchmove', onM); vp.addEventListener('touchend', onE);
-            }
-        }, { passive: false });
-        window.resetView = () => { panX = 0; panY = 0; cv.style.transform = `translate(0px, 0px)`; };
+        const getTime = () => new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const getFullDateTime = () => new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' }) + " " + getTime();
 
         window.handleAuth = () => {
             const name = document.getElementById('auth-user').value.trim();
@@ -105,105 +92,219 @@
             document.getElementById('user-ctrl').classList.remove('hidden');
             document.getElementById('my-avatar').src = user.avatar;
             if(user.id === 'jantorn') document.getElementById('admin-clear').classList.remove('hidden');
-            set(ref(db, `status/${user.id}`), { id: user.id, name: user.name, avatar: user.avatar, online: true, session: user.session });
+            
+            set(ref(db, `status/${user.id}`), { ...user, online: true });
             onDisconnect(ref(db, `status/${user.id}`)).update({ online: false });
             initApp();
         };
 
         function initApp() {
-            onValue(ref(db, `status/${user.id}`), (snap) => { if(!snap.val() || (snap.val().session && snap.val().session !== user.session)) location.reload(); });
-            onValue(ref(db, 'status'), (s) => { 
-                const data = s.val() || {};
-                Object.keys(data).forEach(uid => { if (lastOnlineStatus[uid] === true && data[uid].online === false) expelUserFromChats(uid, data[uid].name); lastOnlineStatus[uid] = data[uid].online; });
-                allUsers = data; renderMembers(data); 
+            onValue(ref(db, 'status'), snap => {
+                const data = snap.val() || {};
+                Object.keys(data).forEach(uid => {
+                    if (lastOnlineStatus[uid] === true && data[uid].online === false) expelUser(uid, data[uid].name);
+                    lastOnlineStatus[uid] = data[uid].online;
+                });
+                allUsers = data; renderMembers(data);
             });
-            onValue(ref(db, 'public_notes'), (s) => syncUI(s.val(), 'public'));
-            onValue(ref(db, `private_notes/${user.id}`), (s) => syncUI(s.val(), 'private'));
-            onValue(ref(db, `chat_master`), (snap) => {
-                const chats = snap.val() || {};
-                Object.keys(chats).forEach(cid => { if(chats[cid].active_participants?.includes(user.id)) {
-                    get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => { const pD = pS.val() || {}; update(ref(db, `private_notes/${user.id}/${cid}`), { ...chats[cid], x: pD.x ?? chats[cid].x, y: pD.y ?? chats[cid].y }); });
-                } else { remove(ref(db, `private_notes/${user.id}/${cid}`)); }});
-            });
-        }
-
-        function renderMembers(data) {
-            const bar = document.getElementById('members-bar'); bar.innerHTML = '';
-            Object.keys(data).forEach(uid => {
-                const u = data[uid]; if (user.id !== 'jantorn' && !u.online && uid !== user.id) return;
-                const div = document.createElement('div'); div.className = `member-card ${!u.online ? 'is-offline' : ''}`;
-                const delBtn = (user.id === 'jantorn' && uid !== user.id) ? `<div class="member-del-btn" onclick="event.stopPropagation(); window.adminHardPurge('${uid}', '${u.name}')">✕</div>` : '';
-                const crown = (uid === 'jantorn') ? `<div class="admin-badge">👑</div>` : '';
-                div.innerHTML = `<div class="relative w-8 h-8">${crown}${delBtn}<img src="${u.avatar}" class="w-full h-full rounded-full border-2 border-white shadow-sm"><div class="${u.online ? 'online-dot' : 'hidden'}"></div></div><span class="member-name">${u.name}</span>`;
-                div.onmousedown = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; div.ontouchstart = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; bar.appendChild(div);
+            onValue(ref(db, 'public_notes'), s => syncUI(s.val(), 'public'));
+            onValue(ref(db, `private_notes/${user.id}`), s => syncUI(s.val(), 'private'));
+            onValue(ref(db, `chat_master`), s => {
+                const chats = s.val() || {};
+                Object.keys(chats).forEach(cid => {
+                    if(chats[cid].active_participants?.includes(user.id)) {
+                        get(ref(db, `private_notes/${user.id}/${cid}`)).then(pS => {
+                            const pD = pS.val() || {};
+                            // FIXED: Don't overwrite local X,Y during sync if not needed
+                            update(ref(db, `private_notes/${user.id}/${cid}`), {
+                                messages: chats[cid].messages,
+                                active_participants: chats[cid].active_participants,
+                                x: pD.x || chats[cid].x,
+                                y: pD.y || chats[cid].y
+                            });
+                        });
+                    } else { remove(ref(db, `private_notes/${user.id}/${cid}`)); }
+                });
             });
         }
 
         function syncUI(data, zone) {
             const layer = document.getElementById('notes-layer');
-            const currentEls = document.querySelectorAll(`[data-zone="${zone}"]`);
-            if(!data) { currentEls.forEach(el => el.remove()); return; }
-            currentEls.forEach(el => { if(!data[el.getAttribute('data-id')]) el.remove(); });
+            const existing = document.querySelectorAll(`[data-zone="${zone}"]`);
+            if(!data) { existing.forEach(el => el.remove()); return; }
+            existing.forEach(el => { if(!data[el.getAttribute('data-id')]) el.remove(); });
             Object.keys(data).forEach(id => {
                 let el = document.querySelector(`[data-id="${id}"]`);
-                if(!el) { el = document.createElement('div'); el.setAttribute('data-id', id); el.setAttribute('data-zone', zone); layer.appendChild(el); }
+                if(!el) {
+                    el = document.createElement('div');
+                    el.setAttribute('data-id', id); el.setAttribute('data-zone', zone);
+                    layer.appendChild(el);
+                }
                 if(!el.classList.contains('dragging')) renderNoteContent(el, id, data[id], zone);
             });
         }
 
         function renderNoteContent(el, id, n, zone) {
-            el.className = `post-it ${n.isChat ? 'is-chat' : ''}`;
-            el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.style.zIndex = n.zIndex || 10;
             const canManage = (zone === 'private' || user.id === 'jantorn' || !n.isPinned || n.pinnedBy === user.id);
+            const editing = editStates[id];
+            el.className = `post-it ${n.isChat ? 'is-chat' : ''}`;
+            
+            // FIXED: Only update style if NOT currently interacting
+            if(!document.activeElement || document.activeElement.id !== `reply-${id}`) {
+                el.style.left = n.x + 'px';
+                el.style.top = n.y + 'px';
+            }
+            el.style.zIndex = n.zIndex || 10;
+
+            let bodyHtml = n.isChat ? `
+                <div id="chat-box-${id}" class="chat-area text-slate-800">${(n.messages || []).map(m => `<div><strong>${m.user}</strong> <span class="text-[8px] text-slate-400">[${m.time || '..:..'}]</span>: ${m.text}</div>`).join('')}</div>
+                <div class="chat-input-wrapper">
+                    <input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input" onkeypress="if(event.key === 'Enter') window.handleReply('${id}')">
+                    <button onclick="window.handleReply('${id}')" class="bg-blue-600 text-white text-[9px] px-2 py-1 rounded-full font-bold">SEND</button>
+                </div>
+            ` : (editing ? `
+                <textarea id="edit-txt-${id}" class="edit-mode-input no-scrollbar" rows="5">${n.messages[0].text}</textarea>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window.saveEdit('${id}','${zone}')" class="bg-blue-600 text-white text-[9px] px-3 py-1 rounded-full font-bold">SAVE</button>
+                    <button onclick="window.toggleEdit('${id}', false)" class="bg-gray-400 text-white text-[9px] px-3 py-1 rounded-full font-bold">X</button>
+                </div>
+            ` : `<div class="chat-area text-slate-800">${n.messages[0].text}</div>`);
+
             el.innerHTML = `
-                <div class="btn-del" onclick="event.stopPropagation(); window.deleteNoteUnified('${zone}','${id}', ${!!n.isChat})">✕</div>
-                <div class="flex flex-col border-b border-black/5 pb-1 mb-1 pointer-events-none">
-                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                        <span class="text-xs font-normal cursor-pointer pointer-events-auto" onclick="event.stopPropagation(); window.togglePin('${id}','${zone}',${!!n.isPinned},'${n.pinnedBy}')">${n.isPinned ? '📌' : '📍'}</span>
-                        <span class="truncate uppercase font-black text-[9px]">${n.isChat ? 'GROUP' : 'NOTE'}</span>
-                    </div>
+                ${canManage ? `<div class="btn-del" onclick="window.deleteNote('${zone}','${id}',${!!n.isChat})">✕</div>` : ''}
+                ${canManage && !n.isChat && !editing ? `<div class="btn-edit" onclick="window.toggleEdit('${id}', true)">📝</div>` : ''}
+                <div class="flex items-center gap-2 border-b border-black/5 pb-1 mb-2">
+                    <span class="text-xs cursor-pointer" onclick="window.togglePin('${id}','${zone}',${!!n.isPinned},'${n.pinnedBy}')">${n.isPinned ? '📌' : '📍'}</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase">${n.isChat ? 'Group' : 'Note'}</span>
                 </div>
-                <div id="chat-box-${id}" class="chat-area no-scrollbar text-slate-800">
-                    ${(n.messages || []).map(m => `<div><strong>${m.user}</strong> <span class="msg-time">[${m.time || '..:..'}]</span>: ${m.text}</div>`).join('')}
-                </div>
-                ${n.isChat ? `<div class="chat-input-wrapper">
-                    <input id="reply-${id}" type="text" placeholder="Reply..." class="direct-input" onkeypress="if(event.key === 'Enter') window.replyInNote('${id}', this.value)">
-                    <button onclick="window.replyInNote('${id}', document.getElementById('reply-${id}').value)" class="bg-blue-600 text-white text-[9px] px-2 py-1 rounded-full font-bold">SEND</button>
-                </div>` : ''}
-                <div class="note-time-stamp">${n.createdAt || getFullDateTime()}</div>
+                ${bodyHtml}
+                <div class="time-labels"><div>Created: ${n.createdAt || '-'}</div>${n.updatedAt ? `<div>Updated: ${n.updatedAt}</div>` : ''}</div>
             `;
-            setTimeout(() => { const b = document.getElementById(`chat-box-${id}`); if(b) b.scrollTop = b.scrollHeight; }, 100);
-            el.onmousedown = (e) => { if(canManage) startDrag(e, el, id, zone, n); }; el.ontouchstart = (e) => { if(canManage) startDrag(e, el, id, zone, n); };
+            
+            if(n.isChat) { const b = document.getElementById(`chat-box-${id}`); if(b) b.scrollTop = b.scrollHeight; }
+            if(editing) setTimeout(() => document.getElementById(`edit-txt-${id}`).focus(), 50);
+            
+            el.onmousedown = (e) => { if(canManage && !editing) startDrag(e, el, id, zone, n); };
+            el.ontouchstart = (e) => { if(canManage && !editing) startDrag(e, el, id, zone, n); };
         }
 
-        window.replyInNote = (id, text) => { if(!text.trim()) return; get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(d) { const m = d.messages || []; m.push({user: user.name, text: text.trim(), time: getTime()}); update(ref(db, `chat_master/${id}`), {messages: m}); d.active_participants.forEach(p => update(ref(db, `private_notes/${p}/${id}`), {messages: m})); } }); document.getElementById(`reply-${id}`).value = ''; };
-        window.createNewSticky = () => { const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return; const id = "note_" + Date.now(); const b = document.getElementById('private-barrier').getBoundingClientRect(); let startX = (window.innerWidth < 768) ? (window.innerWidth / 2 - 100) : (b.left + 50); let startY = (window.innerWidth < 768) ? (b.top + 50) : (window.innerHeight / 2 - 100); set(ref(db, `private_notes/${user.id}/${id}`), { ownerId: user.id, messages: [{user: user.name, text: txt, time: getTime()}], x: startX - panX, y: startY - panY, zIndex: ++highestZ, isChat: false, isPinned: false, createdAt: getFullDateTime() }); document.getElementById('new-note-text').value = ''; };
-        window.deleteNoteUnified = (z, id, isC) => { get(ref(db, z==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`)).then(snap => { const data = snap.val(); if (data?.isPinned && data.pinnedBy !== user.id && user.id !== 'jantorn') { alert('ล็อก!'); return; } if (!confirm('ลบ?')) return; if (isC) { get(ref(db, `chat_master/${id}`)).then(s => { const d = s.val(); if(!d) { remove(ref(db, `private_notes/${user.id}/${id}`)); return; } const rem = d.active_participants.filter(p => p !== user.id); const msgs = d.messages || []; msgs.push({user: 'System', text: `${user.name} ปิดหน้าต่างแล้ว`, time: getTime()}); remove(ref(db, `private_notes/${user.id}/${id}`)); if (rem.length === 0) remove(ref(db, `chat_master/${id}`)); else { update(ref(db, `chat_master/${id}`), { active_participants: rem, messages: msgs }); rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), { active_participants: rem, messages: msgs })); } }); } else remove(ref(db, z==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`)); }); };
-        function expelUserFromChats(uid, name) { get(ref(db, 'chat_master')).then(snap => { const chats = snap.val() || {}; Object.keys(chats).forEach(cid => { if (chats[cid].active_participants?.includes(uid)) { const rem = chats[cid].active_participants.filter(p => p !== uid); const msgs = chats[cid].messages || []; msgs.push({user: 'System', text: `${name} หลุดจากกลุ่ม`, time: getTime()}); if (rem.length === 0) remove(ref(db, `chat_master/${cid}`)); else { update(ref(db, `chat_master/${cid}`), { active_participants: rem, messages: msgs }); rem.forEach(p => update(ref(db, `private_notes/${p}/${cid}`), { active_participants: rem, messages: msgs })); } } }); }); }
+        // FIXED: Improved Reply Handler (No jump)
+        window.handleReply = (id) => {
+            const input = document.getElementById(`reply-${id}`);
+            const text = input.value.trim(); if(!text) return;
+            get(ref(db, `chat_master/${id}`)).then(s => {
+                const d = s.val(); if(!d) return;
+                const m = d.messages || []; m.push({user: user.name, text, time: getTime()});
+                const updates = {};
+                updates[`chat_master/${id}/messages`] = m;
+                // Only update messages, leave X,Y alone
+                d.active_participants.forEach(p => updates[`private_notes/${p}/${id}/messages`] = m);
+                update(ref(db), updates);
+            });
+            input.value = '';
+        };
+
+        window.toggleEdit = (id, state) => { editStates[id] = state; initApp(); };
+        window.saveEdit = (id, zone) => {
+            const txt = document.getElementById(`edit-txt-${id}`).value.trim(); if(!txt) return;
+            const path = zone === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
+            update(ref(db, path), { messages: [{user: user.name, text: txt, time: getTime()}], updatedAt: getFullDateTime() });
+            window.toggleEdit(id, false);
+        };
+
+        // --- Core Navigation & Drag Logic ---
+        vp.addEventListener('touchstart', e => {
+            if(e.target.id === 'canvas' || e.target.id === 'viewport') {
+                const sX = e.touches[0].clientX - panX, sY = e.touches[0].clientY - panY;
+                const onMove = m => { panX = m.touches[0].clientX - sX; panY = m.touches[0].clientY - sY; cv.style.transform = `translate(${panX}px, ${panY}px)`; };
+                const onEnd = () => { vp.removeEventListener('touchmove', onMove); vp.removeEventListener('touchend', onEnd); };
+                vp.addEventListener('touchmove', onMove); vp.addEventListener('touchend', onEnd);
+            }
+        }, { passive: false });
+
         function startDrag(e, el, id, zone, data) {
-            if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.classList.contains('btn-del') || e.target.closest('span')) return;
-            const ev = e.touches ? e.touches[0] : e; const offX = ev.clientX - el.offsetLeft - panX, offY = ev.clientY - el.offsetTop - panY;
+            if(['INPUT','TEXTAREA','BUTTON'].includes(e.target.tagName) || e.target.closest('.btn-del') || e.target.closest('.btn-edit')) return;
+            const ev = e.touches ? e.touches[0] : e;
+            const offX = ev.clientX - el.offsetLeft - panX, offY = ev.clientY - el.offsetTop - panY;
             el.classList.add('dragging'); highestZ++; el.style.zIndex = highestZ;
-            const move = (m) => { const mev = m.touches ? m.touches[0] : m; el.style.left = (mev.clientX - offX - panX) + 'px'; el.style.top = (mev.clientY - offY - panY) + 'px'; };
-            const stop = (v) => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop); el.classList.remove('dragging'); const vev = v.changedTouches ? v.changedTouches[0] : v; const finX = vev.clientX - offX - panX, finY = vev.clientY - offY - panY; const bRect = document.getElementById('private-barrier').getBoundingClientRect(); let inP = (window.innerWidth < 768) ? (vev.clientY > bRect.top) : (vev.clientX > bRect.left); if(zone === 'public' && inP) { remove(ref(db, `public_notes/${id}`)); set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); } else if(zone === 'private' && !inP) { if(data.isChat) { el.style.left = data.x + 'px'; el.style.top = data.y + 'px'; return; } remove(ref(db, `private_notes/${user.id}/${id}`)); set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); } else { update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), {x: finX, y: finY, zIndex: highestZ}); } };
-            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
-        }
-        function startIconDrag(e, tUid) {
-            const ev = e.touches ? e.touches[0] : e; const cl = document.createElement('div'); cl.className = "fixed z-[20000] bg-white border px-3 py-1 rounded-full shadow-2xl text-[11px] font-bold flex items-center gap-2 pointer-events-none";
-            cl.innerHTML = `<img src="${allUsers[tUid].avatar}" class="w-5 h-5 rounded-full"><span>${allUsers[tUid].name}</span>`; document.body.appendChild(cl);
-            const move = (m) => { const mev = m.touches ? m.touches[0] : m; cl.style.left = (mev.clientX-30)+'px'; cl.style.top = (mev.clientY-15)+'px'; };
-            const stop = (v) => {
+            
+            const move = m => { 
+                const mev = m.touches ? m.touches[0] : m; 
+                el.style.left = (mev.clientX - offX - panX) + 'px'; 
+                el.style.top = (mev.clientY - offY - panY) + 'px'; 
+            };
+            const stop = v => {
                 document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
-                const vev = v.changedTouches ? v.changedTouches[0] : v; const hitNote = document.elementFromPoint(vev.clientX, vev.clientY)?.closest('.is-chat');
-                if(hitNote) { const cid = hitNote.getAttribute('data-id'); get(ref(db, `chat_master/${cid}`)).then(snap => { const d = snap.val(); if(d && !d.active_participants.includes(tUid)) { const nAct = [...d.active_participants, tUid]; const msgs = d.messages || []; msgs.push({user: 'System', text: `${allUsers[tUid].name} เข้ากลุ่ม`, time: getTime()}); update(ref(db, `chat_master/${cid}`), { active_participants: nAct, messages: msgs }); nAct.forEach(pid => update(ref(db, `private_notes/${pid}/${cid}`), { active_participants: nAct, messages: msgs })); } }); }
-                else if(vev.clientX > window.innerWidth - 400) { const cid = "chat_" + Date.now(); const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `แชทเริ่มแล้ว`, time: getTime()}], x: vev.clientX-panX-100, y: vev.clientY-panY-120, zIndex: ++highestZ, createdAt: getFullDateTime() }; set(ref(db, `chat_master/${cid}`), cd); set(ref(db, `private_notes/${user.id}/${cid}`), cd); set(ref(db, `private_notes/${tUid}/${cid}`), cd); } cl.remove();
+                el.classList.remove('dragging');
+                const vev = v.changedTouches ? v.changedTouches[0] : v;
+                const finX = vev.clientX - offX - panX, finY = vev.clientY - offY - panY;
+                const b = document.getElementById('private-barrier').getBoundingClientRect();
+                const inP = (window.innerWidth < 768) ? (vev.clientY > b.top) : (vev.clientX > b.left);
+                
+                if(zone === 'public' && inP) { remove(ref(db, `public_notes/${id}`)); set(ref(db, `private_notes/${user.id}/${id}`), {...data, x: finX, y: finY, zIndex: highestZ}); }
+                else if(zone === 'private' && !inP) {
+                    if(data.isChat) { el.style.left = data.x + 'px'; el.style.top = data.y + 'px'; return; }
+                    remove(ref(db, `private_notes/${user.id}/${id}`)); set(ref(db, `public_notes/${id}`), {...data, x: finX, y: finY, zIndex: highestZ});
+                } else { update(ref(db, zone==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), {x: finX, y: finY, zIndex: highestZ}); }
             };
             document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
         }
-        window.adminHardPurge = (uid, name) => { if(confirm(`ลบสมาชิก "${name}"?`)) { remove(ref(db, `status/${uid}`)); remove(ref(db, `private_notes/${uid}`)); } };
-        window.changeAvatar = () => { const ns = Math.random().toString(36).substring(7); user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${ns}`; document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), { avatar: user.avatar }); };
-        window.clearBoard = () => { if(confirm('Clear Board?')) set(ref(db, 'public_notes'), null); };
-        window.togglePin = (id, zone, current, pBy) => { if(current && pBy !== user.id && user.id !== 'jantorn') return; update(ref(db, zone === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`), { isPinned: !current, pinnedBy: !current ? user.id : null }); };
+
+        window.createNewSticky = () => {
+            const txt = document.getElementById('new-note-text').value.trim(); if(!txt) return;
+            const id = "note_" + Date.now();
+            const b = document.getElementById('private-barrier').getBoundingClientRect();
+            let sX = (window.innerWidth < 768) ? (window.innerWidth/2 - 100) : (b.left + 50);
+            let sY = (window.innerWidth < 768) ? (b.top + 50) : (window.innerHeight/2 - 100);
+            set(ref(db, `private_notes/${user.id}/${id}`), { 
+                ownerId: user.id, messages: [{user: user.name, text: txt, time: getTime()}], 
+                x: sX - panX, y: sY - panY, zIndex: ++highestZ, isChat: false, isPinned: false, createdAt: getFullDateTime() 
+            });
+            document.getElementById('new-note-text').value = '';
+        };
+
+        // --- Helpers ---
+        window.renderMembers = data => {
+            const bar = document.getElementById('members-bar'); bar.innerHTML = '';
+            Object.keys(data).forEach(uid => {
+                const u = data[uid]; if (user.id !== 'jantorn' && !u.online && uid !== user.id) return;
+                const div = document.createElement('div'); div.className = `member-card ${!u.online ? 'is-offline' : ''}`;
+                div.innerHTML = `<div class="relative w-8 h-8">${uid==='jantorn'?'<div class="admin-badge">👑</div>':''}${user.id==='jantorn'&&uid!==user.id?'<div class="btn-del !-top-1 !-right-1 !text-xs !bg-red-500 !text-white !w-4 !h-4 !rounded-full !flex !items-center !justify-center" onclick="adminPurge(\''+uid+'\')">✕</div>':''}<img src="${u.avatar}" class="w-full h-full rounded-full border-2 border-white"><div class="${u.online ? 'online-dot' : 'hidden'}"></div></div><span class="member-name">${u.name}</span>`;
+                div.onmousedown = (e) => { if(uid!==user.id) startIconDrag(e, uid); }; bar.appendChild(div);
+            });
+        };
+        window.deleteNote = (z, id, ic) => {
+            if(!confirm('ลบ?')) return;
+            const p = z === 'public' ? `public_notes/${id}` : `private_notes/${user.id}/${id}`;
+            if(ic) {
+                get(ref(db, `chat_master/${id}`)).then(s => {
+                    const d = s.val(); if(!d) { remove(ref(db, p)); return; }
+                    const rem = d.active_participants.filter(p => p !== user.id);
+                    const msgs = d.messages || []; msgs.push({user: 'System', text: `${user.name} ปิดแชท`, time: getTime()});
+                    remove(ref(db, p));
+                    if(rem.length === 0) remove(ref(db, `chat_master/${id}`));
+                    else { update(ref(db, `chat_master/${id}`), { active_participants: rem, messages: msgs }); rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), { active_participants: rem, messages: msgs })); }
+                });
+            } else remove(ref(db, p));
+        };
+        window.adminPurge = uid => confirm('ลบสมาชิก?') && (remove(ref(db, `status/${uid}`)), remove(ref(db, `private_notes/${uid}`)));
+        window.resetView = () => { panX = 0; panY = 0; cv.style.transform = `translate(0px, 0px)`; };
+        window.changeAvatar = () => { user.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${Math.random()}`; document.getElementById('my-avatar').src = user.avatar; update(ref(db, `status/${user.id}`), { avatar: user.avatar }); };
+        window.clearBoard = () => confirm('ล้างบอร์ดกลาง?') && set(ref(db, 'public_notes'), null);
+        window.togglePin = (id, z, c, pb) => { if(c && pb !== user.id && user.id !== 'jantorn') return; update(ref(db, z==='public'?`public_notes/${id}`:`private_notes/${user.id}/${id}`), { isPinned: !c, pinnedBy: !c ? user.id : null }); };
+        function expelUser(uid, n) { get(ref(db, 'chat_master')).then(s => { const c = s.val() || {}; Object.keys(c).forEach(id => { if(c[id].active_participants?.includes(uid)) { const rem = c[id].active_participants.filter(p => p !== uid); const msgs = c[id].messages || []; msgs.push({user:'System', text: n+' หลุด', time: getTime()}); if(rem.length===0) remove(ref(db, `chat_master/${id}`)); else { update(ref(db, `chat_master/${id}`), {active_participants: rem, messages: msgs}); rem.forEach(p => update(ref(db, `private_notes/${p}/${id}`), {active_participants: rem, messages: msgs})); } } }); }); }
+        function startIconDrag(e, tUid) {
+            const ev = e.touches ? e.touches[0] : e; const cl = document.createElement('div'); cl.className = "fixed z-[20000] bg-white border px-3 py-1 rounded-full shadow-2xl text-[11px] font-bold flex items-center gap-2 pointer-events-none";
+            cl.innerHTML = `<img src="${allUsers[tUid].avatar}" class="w-5 h-5 rounded-full"><span>${allUsers[tUid].name}</span>`; document.body.appendChild(cl);
+            const move = m => { const mv = m.touches ? m.touches[0] : m; cl.style.left = (mv.clientX-30)+'px'; cl.style.top = (mv.clientY-15)+'px'; };
+            const stop = v => {
+                document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', stop);
+                const vev = v.changedTouches ? v.changedTouches[0] : v; const hit = document.elementFromPoint(vev.clientX, vev.clientY)?.closest('.is-chat');
+                if(hit) { const cid = hit.getAttribute('data-id'); get(ref(db, `chat_master/${cid}`)).then(s => { const d = s.val(); if(d && !d.active_participants.includes(tUid)) { const nAct = [...d.active_participants, tUid]; const msgs = d.messages || []; msgs.push({user: 'System', text: `${allUsers[tUid].name} เข้ากลุ่ม`, time: getTime()}); const ups = {}; ups[`chat_master/${cid}/active_participants`] = nAct; ups[`chat_master/${cid}/messages`] = msgs; nAct.forEach(p => ups[`private_notes/${p}/${cid}`] = {...d, active_participants: nAct, messages: msgs}); update(ref(db), ups); } }); }
+                else if(vev.clientX > window.innerWidth - 400) { const cid = "chat_" + Date.now(); const cd = { ownerId: user.id, isChat: true, active_participants: [user.id, tUid], messages: [{user: 'System', text: `แชทเริ่มแล้ว`, time: getTime()}], x: vev.clientX-panX-100, y: vev.clientY-panY-120, zIndex: ++highestZ, createdAt: getFullDateTime() }; const ups = {}; ups[`chat_master/${cid}`] = cd; ups[`private_notes/${user.id}/${cid}`] = cd; ups[`private_notes/${tUid}/${cid}`] = cd; update(ref(db), ups); } cl.remove();
+            };
+            document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop); document.addEventListener('touchmove', move); document.addEventListener('touchend', stop);
+        }
     </script>
 </body>
 </html>
